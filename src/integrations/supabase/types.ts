@@ -9,7 +9,66 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          church_name: string | null
+          city: string | null
+          created_at: string
+          date_of_birth: string | null
+          display_name: string | null
+          first_name: string | null
+          gender: string | null
+          has_kids: string | null
+          id: string
+          last_name: string | null
+          life_verse: string | null
+          marital_status: string | null
+          pastor_name: string | null
+          phone_number: string | null
+          profile_pictures: string[] | null
+          state: string | null
+          updated_at: string
+        }
+        Insert: {
+          church_name?: string | null
+          city?: string | null
+          created_at?: string
+          date_of_birth?: string | null
+          display_name?: string | null
+          first_name?: string | null
+          gender?: string | null
+          has_kids?: string | null
+          id: string
+          last_name?: string | null
+          life_verse?: string | null
+          marital_status?: string | null
+          pastor_name?: string | null
+          phone_number?: string | null
+          profile_pictures?: string[] | null
+          state?: string | null
+          updated_at?: string
+        }
+        Update: {
+          church_name?: string | null
+          city?: string | null
+          created_at?: string
+          date_of_birth?: string | null
+          display_name?: string | null
+          first_name?: string | null
+          gender?: string | null
+          has_kids?: string | null
+          id?: string
+          last_name?: string | null
+          life_verse?: string | null
+          marital_status?: string | null
+          pastor_name?: string | null
+          phone_number?: string | null
+          profile_pictures?: string[] | null
+          state?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
