@@ -108,7 +108,7 @@ const Auth = () => {
             <CardHeader className="text-center">
               <div className="flex justify-center items-center gap-2 mb-4">
                 <Church className="w-8 h-8 text-primary" />
-                <CardTitle className="text-2xl">FaithConnect</CardTitle>
+                <CardTitle className="text-2xl">AVYO In-Gathering</CardTitle>
               </div>
               <CardDescription>
                 {isLogin ? 'Welcome back to our community' : 'Join our Christian community'}

@@ -51,7 +51,7 @@ const PostRegistrationForm = ({ userEmail, onBack }: PostRegistrationFormProps) 
         // Simulate successful profile completion
         toast({
           title: "Profile completed successfully!",
-          description: "Welcome to the FaithConnect community!",
+          description: "Welcome to the AVYO In-Gathering community!",
         });
         // Here we would typically redirect to the main app
       } else {

@@ -43,7 +43,7 @@ const Index = () => {
           <div className="flex justify-between items-center mb-8">
             <div className="flex items-center gap-2">
               <Church className="w-8 h-8 text-primary" />
-              <h1 className="text-2xl font-bold text-foreground">FaithConnect</h1>
+              <h1 className="text-2xl font-bold text-foreground">AVYO In-Gathering</h1>
             </div>
             <Button variant="outline" onClick={handleSignOut} className="flex items-center gap-2">
               <LogOut className="w-4 h-4" />
@@ -56,7 +56,7 @@ const Index = () => {
             <CardHeader className="text-center">
               <CardTitle className="text-3xl flex items-center justify-center gap-2">
                 <Heart className="w-8 h-8 text-primary" />
-                Welcome to FaithConnect!
+                Welcome to AVYO In-Gathering!
               </CardTitle>
               <CardDescription className="text-lg">
                 Hello {user.email}! Your faith community awaits.
@@ -95,7 +95,7 @@ const Index = () => {
         <div className="text-center mb-12">
           <div className="flex justify-center items-center gap-2 mb-4">
             <Church className="w-8 h-8 text-primary" />
-            <h1 className="text-4xl font-bold text-foreground">FaithConnect</h1>
+            <h1 className="text-4xl font-bold text-foreground">AVYO In-Gathering</h1>
           </div>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
             A Christian community where faith meets fellowship. Connect with believers, share your journey, and grow together in Christ.
