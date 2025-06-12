@@ -2,14 +2,15 @@
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Heart, Users, Church, LogOut } from 'lucide-react';
+import { Heart, Users, Church } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import Header from '@/components/Header';
 import SignupForm from '../components/SignupForm';
 import PostRegistrationForm from '../components/PostRegistrationForm';
 
 const Index = () => {
-  const { user, loading, signOut } = useAuth();
+  const { user, loading } = useAuth();
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState<'welcome' | 'signup' | 'post-registration'>('welcome');
   const [userEmail, setUserEmail] = useState('');
@@ -18,8 +19,8 @@ const Index = () => {
     setCurrentStep('post-registration');
   };
 
-  const handleSignOut = async () => {
-    await signOut();
+  const handlePostRegistrationComplete = () => {
+    navigate('/profile');
   };
 
   if (loading) {
@@ -37,19 +38,8 @@ const Index = () => {
   if (user) {
     return (
       <div className="min-h-screen gradient-bg">
+        <Header />
         <div className="container mx-auto px-4 py-8">
-          {/* Header with sign out */}
-          <div className="flex justify-between items-center mb-8">
-            <div className="flex items-center gap-2">
-              <Church className="w-8 h-8 text-primary" />
-              <h1 className="text-2xl font-bold text-foreground">AVYO In-Gathering</h1>
-            </div>
-            <Button variant="outline" onClick={handleSignOut} className="flex items-center gap-2">
-              <LogOut className="w-4 h-4" />
-              Sign Out
-            </Button>
-          </div>
-
           {/* Welcome message */}
           <Card className="gradient-card border-0 shadow-lg max-w-2xl mx-auto">
             <CardHeader className="text-center">
@@ -66,11 +56,14 @@ const Index = () => {
                 You're now part of our growing Christian community. Here you can connect with believers, 
                 share your faith journey, and grow together in Christ.
               </p>
-              <div className="bg-primary/10 rounded-lg p-4">
+              <div className="bg-primary/10 rounded-lg p-4 mb-6">
                 <p className="text-sm text-primary font-medium">
                   "For where two or three gather in my name, there am I with them." - Matthew 18:20
                 </p>
               </div>
+              <Button onClick={() => navigate('/profile')} className="w-full">
+                View My Profile
+              </Button>
             </CardContent>
           </Card>
         </div>
@@ -84,11 +77,12 @@ const Index = () => {
   }
 
   if (currentStep === 'post-registration') {
-    return <PostRegistrationForm userEmail={userEmail} onBack={() => setCurrentStep('signup')} />;
+    return <PostRegistrationForm userEmail={userEmail} onBack={() => setCurrentStep('signup')} onComplete={handlePostRegistrationComplete} />;
   }
 
   return (
     <div className="min-h-screen gradient-bg">
+      <Header />
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-12">
