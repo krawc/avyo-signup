@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, Upload, User, Calendar, MapPin, Mail, Phone } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from '@/integrations/supabase/client';
 
 interface SignupFormProps {
   onComplete: (email: string) => void;
@@ -24,6 +25,7 @@ const SignupForm = ({ onComplete, onBack }: SignupFormProps) => {
     city: '',
     state: '',
     email: '',
+    password: '',
     profilePictures: [] as File[]
   });
 
@@ -60,15 +62,91 @@ const SignupForm = ({ onComplete, onBack }: SignupFormProps) => {
     }
   };
 
+  const handleSignup = async () => {
+    //e.preventDefault();
+
+    const redirectUrl = `${window.location.origin}/`;
+    
+    const { data: signupData, error } = await supabase.auth.signUp({
+      email: formData.email,
+      password: formData.password,
+      options: {
+        emailRedirectTo: redirectUrl,
+        data: {
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+        }
+      }
+    });
+
+    if (error) {
+      if (error.message.includes('already registered')) {
+        toast({
+          title: "Account already exists",
+          description: "This email is already registered. Try logging in instead.",
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Signup failed",
+          description: error.message,
+          variant: "destructive"
+        });
+      }
+    } else {
+
+    const user = signupData?.user;
+
+    if (user) {
+      // 1. Upload profile pictures
+      const uploadedUrls = [];
+      for (const file of formData.profilePictures) {
+        const { data: storageData, error: storageError } = await supabase
+          .storage
+          .from('profile-pictures')
+          .upload(`public/${user.id}/${file.name}`, file);
+
+        if (storageError) {
+          console.error('Upload error:', storageError.message);
+          continue;
+        }
+
+        const url = supabase.storage
+          .from('profile-pictures')
+          .getPublicUrl(`public/${user.id}/${file.name}`).data.publicUrl;
+
+        uploadedUrls.push(url);
+      }
+
+      // 2. Insert profile into `profiles` table
+      const { error: profileError } = await supabase.from('profiles').insert({
+        id: user.id,
+        date_of_birth: formData.dateOfBirth,
+        gender: formData.gender,
+        city: formData.city,
+        state: formData.state,
+        phone_number: formData.phoneNumber,
+        profile_picture_urls: uploadedUrls,
+      });
+
+      if (profileError) {
+        console.error('Profile insert error:', profileError.message);
+      }
+    }
+      toast({
+        title: "Check your email!",
+        description: "We've sent you a confirmation link to complete your registration.",
+      });
+    }
+    //setLoading(false);
+  };
+
+
   const handleNext = () => {
     if (validateStep(step)) {
       if (step === totalSteps) {
         // Simulate successful registration
-        toast({
-          title: "Account created successfully!",
-          description: "Please check your email for verification.",
-        });
-        onComplete(formData.email);
+        handleSignup()
       } else {
         setStep(step + 1);
       }
@@ -221,6 +299,23 @@ const SignupForm = ({ onComplete, onBack }: SignupFormProps) => {
                         onChange={(e) => handleInputChange('email', e.target.value)}
                         placeholder="john.smith@email.com"
                         className="bg-white/50 border-white/20 pl-10"
+                      />
+                    </div>
+                  </div>
+
+                   <div className="space-y-2">
+                    <Label htmlFor="password">Password</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="password"
+                        type="password"
+                        value={formData.password}
+                        onChange={(e) => handleInputChange('password', e.target.value)}
+                        placeholder="••••••••"
+                        className="bg-white/50 border-white/20 pl-10"
+                        required
+                        minLength={6}
                       />
                     </div>
                   </div>
