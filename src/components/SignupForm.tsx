@@ -5,12 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Upload, User, Calendar, MapPin, Mail, Phone } from 'lucide-react';
+import { ArrowLeft, Upload, User, Calendar, MapPin, Mail, Phone, Lock } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from '@/integrations/supabase/client';
 
 interface SignupFormProps {
-  onComplete: (email: string) => void;
+  onComplete: () => void;
   onBack: () => void;
 }
 
@@ -119,7 +119,7 @@ const SignupForm = ({ onComplete, onBack }: SignupFormProps) => {
       }
 
       // 2. Insert profile into `profiles` table
-      const { error: profileError } = await supabase.from('profiles').insert({
+      const { error: profileError } = await supabase.from('profiles').upsert({
         id: user.id,
         date_of_birth: formData.dateOfBirth,
         gender: formData.gender,
@@ -147,6 +147,7 @@ const SignupForm = ({ onComplete, onBack }: SignupFormProps) => {
       if (step === totalSteps) {
         // Simulate successful registration
         handleSignup()
+        onComplete();
       } else {
         setStep(step + 1);
       }
@@ -262,7 +263,6 @@ const SignupForm = ({ onComplete, onBack }: SignupFormProps) => {
                   </div>
                 </>
               )}
-
               {step === 2 && (
                 <>
                   <div className="grid grid-cols-2 gap-4">
@@ -303,7 +303,7 @@ const SignupForm = ({ onComplete, onBack }: SignupFormProps) => {
                     </div>
                   </div>
 
-                   <div className="space-y-2">
+                  <div className="space-y-2">
                     <Label htmlFor="password">Password</Label>
                     <div className="relative">
                       <Lock className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />

@@ -14,8 +14,7 @@ const Index = () => {
   const [currentStep, setCurrentStep] = useState<'welcome' | 'signup' | 'post-registration'>('welcome');
   const [userEmail, setUserEmail] = useState('');
 
-  const handleSignupComplete = (email: string) => {
-    setUserEmail(email);
+  const handleSignupComplete = () => {
     setCurrentStep('post-registration');
   };
 
