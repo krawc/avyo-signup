@@ -12,9 +12,10 @@ import { useToast } from "@/hooks/use-toast";
 interface PostRegistrationFormProps {
   userEmail: string;
   onBack: () => void;
+  onComplete: () => void;
 }
 
-const PostRegistrationForm = ({ userEmail, onBack }: PostRegistrationFormProps) => {
+const PostRegistrationForm = ({ userEmail, onBack, onComplete }: PostRegistrationFormProps) => {
   const { toast } = useToast();
   const [formData, setFormData] = useState({
     displayName: '',
@@ -53,6 +54,7 @@ const PostRegistrationForm = ({ userEmail, onBack }: PostRegistrationFormProps) 
           title: "Profile completed successfully!",
           description: "Welcome to the AVYO In-Gathering community!",
         });
+        onComplete();
         // Here we would typically redirect to the main app
       } else {
         setStep(step + 1);
