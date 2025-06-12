@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,6 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, User, Heart, Church, BookOpen } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface PostRegistrationFormProps {
   userEmail: string;
@@ -17,6 +18,7 @@ interface PostRegistrationFormProps {
 
 const PostRegistrationForm = ({ userEmail, onBack, onComplete }: PostRegistrationFormProps) => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
     displayName: '',
     maritalStatus: '',
@@ -27,6 +29,7 @@ const PostRegistrationForm = ({ userEmail, onBack, onComplete }: PostRegistratio
   });
 
   const [step, setStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const totalSteps = 3;
 
   const handleInputChange = (field: string, value: string) => {
@@ -46,16 +49,57 @@ const PostRegistrationForm = ({ userEmail, onBack, onComplete }: PostRegistratio
     }
   };
 
-  const handleNext = () => {
+  const saveProfileData = async () => {
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "User not found. Please try logging in again.",
+        variant: "destructive"
+      });
+      return false;
+    }
+
+    setIsSubmitting(true);
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        display_name: formData.displayName,
+        marital_status: formData.maritalStatus,
+        has_kids: formData.hasKids,
+        church_name: formData.churchName || null,
+        pastor_name: formData.pastorName || null,
+        life_verse: formData.lifeVerse,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', user.id);
+
+    setIsSubmitting(false);
+
+    if (error) {
+      console.error('Error updating profile:', error);
+      toast({
+        title: "Error saving profile",
+        description: "There was an error saving your profile. Please try again.",
+        variant: "destructive"
+      });
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleNext = async () => {
     if (validateStep(step)) {
       if (step === totalSteps) {
-        // Simulate successful profile completion
-        toast({
-          title: "Profile completed successfully!",
-          description: "Welcome to the AVYO In-Gathering community!",
-        });
-        onComplete();
-        // Here we would typically redirect to the main app
+        const success = await saveProfileData();
+        if (success) {
+          toast({
+            title: "Profile completed successfully!",
+            description: "Welcome to the AVYO In-Gathering community!",
+          });
+          onComplete();
+        }
       } else {
         setStep(step + 1);
       }
@@ -86,6 +130,7 @@ const PostRegistrationForm = ({ userEmail, onBack, onComplete }: PostRegistratio
               variant="ghost" 
               onClick={handlePrevious}
               className="mb-4 hover:bg-white/20"
+              disabled={isSubmitting}
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back
@@ -244,9 +289,14 @@ const PostRegistrationForm = ({ userEmail, onBack, onComplete }: PostRegistratio
 
               <Button 
                 onClick={handleNext}
+                disabled={isSubmitting}
                 className="w-full text-lg py-6 bg-primary hover:bg-primary/90 transition-all duration-300"
               >
-                {step === totalSteps ? 'Complete Profile' : 'Continue'}
+                {isSubmitting ? (
+                  'Saving...'
+                ) : (
+                  step === totalSteps ? 'Complete Profile' : 'Continue'
+                )}
               </Button>
             </CardContent>
           </Card>
