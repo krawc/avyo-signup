@@ -11,7 +11,8 @@ import { Calendar, MapPin, Users, MessageCircle, Heart } from 'lucide-react';
 import Header from '@/components/Header';
 import EventAttendees from '@/components/EventAttendees';
 import EventConnections from '@/components/EventConnections';
-import EventChat from '@/components/EventChat';
+import DirectMessages from '@/components/DirectMessages';
+import EventMatches from '@/components/EventMatches';
 
 interface Event {
   id: string;
@@ -155,7 +156,7 @@ const EventDetails = () => {
             <CardHeader>
               <div className="flex justify-between items-start">
                 <div className="flex-1">
-                  <CardTitle className="text-3xl">{event.title}</CardTitle>
+                  <CardTitle className="text-3xl font-serif">{event.title}</CardTitle>
                   {event.description && (
                     <CardDescription className="text-lg mt-2">
                       {event.description}
@@ -194,6 +195,11 @@ const EventDetails = () => {
             </CardHeader>
           </Card>
 
+          {/* Event Matches - Only show if user is attending */}
+          {isAttending && (
+            <EventMatches eventId={event.id} />
+          )}
+
           {/* Event Tabs - Only show if user is attending */}
           {isAttending && (
             <Card className="gradient-card border-0 shadow-lg">
@@ -208,9 +214,9 @@ const EventDetails = () => {
                       <Heart className="h-4 w-4" />
                       Connections
                     </TabsTrigger>
-                    <TabsTrigger value="chat" className="flex items-center gap-2">
+                    <TabsTrigger value="messages" className="flex items-center gap-2">
                       <MessageCircle className="h-4 w-4" />
-                      Chat
+                      Messages
                     </TabsTrigger>
                   </TabsList>
                   <TabsContent value="attendees" className="mt-6">
@@ -219,8 +225,8 @@ const EventDetails = () => {
                   <TabsContent value="connections" className="mt-6">
                     <EventConnections eventId={event.id} />
                   </TabsContent>
-                  <TabsContent value="chat" className="mt-6">
-                    <EventChat eventId={event.id} />
+                  <TabsContent value="messages" className="mt-6">
+                    <DirectMessages eventId={event.id} />
                   </TabsContent>
                 </Tabs>
               </CardContent>

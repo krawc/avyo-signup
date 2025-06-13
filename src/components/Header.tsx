@@ -20,7 +20,7 @@ const Header = () => {
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
             <Church className="w-6 h-6 text-primary" />
-            <h1 className="text-xl font-bold text-foreground">AVYO In-Gathering</h1>
+            <h1 className="text-xl font-serif font-semibold text-foreground">AVYO In-Gathering</h1>
           </div>
 
           {user ? (
