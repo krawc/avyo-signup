@@ -1,86 +1,210 @@
 
-import { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useState } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ArrowLeft, Mail, Lock, User, Church } from 'lucide-react';
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
-import SignupForm from '@/components/SignupForm';
-import PostRegistrationForm from '@/components/PostRegistrationForm';
-import EmailConfirmation from '@/components/EmailConfirmation';
 
 const Auth = () => {
-  const { user, loading } = useAuth();
+  const { toast } = useToast();
   const navigate = useNavigate();
-  const [currentStep, setCurrentStep] = useState<'signup' | 'email-confirmation' | 'post-registration'>('signup');
-  const [userEmail, setUserEmail] = useState('');
+  const [isLogin, setIsLogin] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+    firstName: '',
+    lastName: '',
+  });
 
-  useEffect(() => {
-    if (!loading && user) {
-      // Check if user has completed post-registration
-      if (user.email_confirmed_at) {
-        // User is confirmed, check if they need to complete profile
-        navigate('/profile');
-      } else {
-        // User exists but email not confirmed
-        setCurrentStep('email-confirmation');
-        setUserEmail(user.email || '');
-      }
-    }
-  }, [user, loading, navigate]);
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
 
-  const handleSignupSuccess = (email: string, needsConfirmation: boolean) => {
-    setUserEmail(email);
-    if (needsConfirmation) {
-      setCurrentStep('email-confirmation');
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email: formData.email,
+      password: formData.password,
+    });
+
+    if (error) {
+      toast({
+        title: "Login failed",
+        description: error.message,
+        variant: "destructive"
+      });
     } else {
-      setCurrentStep('post-registration');
+      toast({
+        title: "Welcome back!",
+        description: "You have been logged in successfully.",
+      });
+      navigate('/');
     }
+    setLoading(false);
   };
 
-  const handleEmailConfirmed = () => {
-    setCurrentStep('post-registration');
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    const redirectUrl = `${window.location.origin}/post-registration`;
+    
+    const { error } = await supabase.auth.signUp({
+      email: formData.email,
+      password: formData.password,
+      options: {
+        emailRedirectTo: redirectUrl,
+        data: {
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+        }
+      }
+    });
+
+    if (error) {
+      if (error.message.includes('already registered')) {
+        toast({
+          title: "Account already exists",
+          description: "This email is already registered. Try logging in instead.",
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Signup failed",
+          description: error.message,
+          variant: "destructive"
+        });
+      }
+    } else {
+      toast({
+        title: "Check your email!",
+        description: "We've sent you a confirmation link to complete your registration.",
+      });
+    }
+    setLoading(false);
   };
-
-  const handlePostRegistrationComplete = () => {
-    navigate('/profile');
-  };
-
-  const handleBackToSignup = () => {
-    setCurrentStep('signup');
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen gradient-bg flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-2 text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (currentStep === 'email-confirmation') {
-    return (
-      <EmailConfirmation 
-        userEmail={userEmail}
-        onBack={handleBackToSignup}
-      />
-    );
-  }
-
-  if (currentStep === 'post-registration') {
-    return (
-      <PostRegistrationForm
-        userEmail={userEmail}
-        onBack={handleBackToSignup}
-        onComplete={handlePostRegistrationComplete}
-      />
-    );
-  }
 
   return (
-    <SignupForm 
-      onSignupSuccess={handleSignupSuccess}
-    />
+    <div className="min-h-screen gradient-bg">
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-md mx-auto">
+          <Button 
+            variant="ghost" 
+            onClick={() => navigate('/')}
+            className="mb-4 hover:bg-white/20"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Home
+          </Button>
+
+          <Card className="gradient-card border-0 shadow-lg">
+            <CardHeader className="text-center">
+              <div className="flex justify-center items-center gap-2 mb-4">
+                <Church className="w-8 h-8 text-primary" />
+                <CardTitle className="text-2xl">AVYO In-Gathering</CardTitle>
+              </div>
+              <CardDescription>
+                {isLogin ? 'Welcome back to our community' : 'Join our Christian community'}
+              </CardDescription>
+            </CardHeader>
+            
+            <CardContent>
+              <form onSubmit={isLogin ? handleLogin : handleSignup} className="space-y-4">
+                {!isLogin && (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="firstName">First Name</Label>
+                        <div className="relative">
+                          <User className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                          <Input
+                            id="firstName"
+                            value={formData.firstName}
+                            onChange={(e) => handleInputChange('firstName', e.target.value)}
+                            placeholder="John"
+                            className="bg-white/50 border-white/20 pl-10"
+                            required
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="lastName">Last Name</Label>
+                        <Input
+                          id="lastName"
+                          value={formData.lastName}
+                          onChange={(e) => handleInputChange('lastName', e.target.value)}
+                          placeholder="Smith"
+                          className="bg-white/50 border-white/20"
+                          required
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      id="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => handleInputChange('email', e.target.value)}
+                      placeholder="john@example.com"
+                      className="bg-white/50 border-white/20 pl-10"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      id="password"
+                      type="password"
+                      value={formData.password}
+                      onChange={(e) => handleInputChange('password', e.target.value)}
+                      placeholder="••••••••"
+                      className="bg-white/50 border-white/20 pl-10"
+                      required
+                      minLength={6}
+                    />
+                  </div>
+                </div>
+
+                <Button 
+                  type="submit"
+                  className="w-full text-lg py-6 bg-primary hover:bg-primary/90 transition-all duration-300"
+                  disabled={loading}
+                >
+                  {loading ? 'Please wait...' : (isLogin ? 'Sign In' : 'Create Account')}
+                </Button>
+              </form>
+
+              <div className="text-center mt-6">
+                <Button
+                  variant="ghost"
+                  onClick={() => setIsLogin(!isLogin)}
+                  className="text-primary hover:bg-primary/10"
+                >
+                  {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
   );
 };
 

@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { User, UserPlus } from 'lucide-react';
+import { getSignedUrls } from '@/lib/utils'
 
 interface Attendee {
   user_id: string;
@@ -31,7 +32,6 @@ const EventAttendees = ({ eventId }: EventAttendeesProps) => {
   useEffect(() => {
     fetchAttendees();
   }, [eventId]);
-
   const fetchAttendees = async () => {
     const { data, error } = await supabase
       .from('event_attendees')
@@ -47,14 +47,34 @@ const EventAttendees = ({ eventId }: EventAttendeesProps) => {
         )
       `)
       .eq('event_id', eventId);
-
+  
     if (error) {
       console.error('Error fetching attendees:', error);
-    } else {
-      setAttendees(data || []);
+      setLoading(false);
+      return;
     }
+  
+    // Sign all profile picture URLs
+    const attendeesWithSignedUrls = await Promise.all(
+      (data || []).map(async (attendee) => {
+        const rawUrls: string[] = attendee.profiles?.profile_picture_urls || [];
+  
+        // get signed URLs
+        const signedUrls = await getSignedUrls(rawUrls);
+  
+        return {
+          ...attendee,
+          profiles: {
+            ...attendee.profiles,
+            profile_picture_urls: signedUrls,
+          }
+        };
+      })
+    );
+  
+    setAttendees(attendeesWithSignedUrls);
     setLoading(false);
-  };
+  };  
 
   const sendConnectionRequest = async (addresseeId: string) => {
     if (!user) return;

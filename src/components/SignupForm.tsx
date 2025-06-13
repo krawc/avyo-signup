@@ -1,249 +1,403 @@
-import React, { useState } from 'react';
+
+import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ArrowLeft, Upload, User, Calendar, MapPin, Mail, Phone, Lock } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from '@/integrations/supabase/client';
-import { useNavigate } from 'react-router-dom';
-import { CheckCircle, Lock, Mail, User } from 'lucide-react';
 
 interface SignupFormProps {
-  onSignupSuccess: (email: string, needsConfirmation: boolean) => void;
+  onComplete: () => void;
+  onBack: () => void;
 }
 
-const SignupForm = ({ onSignupSuccess }: SignupFormProps) => {
+const SignupForm = ({ onComplete, onBack }: SignupFormProps) => {
   const { toast } = useToast();
-  const navigate = useNavigate();
-
-  const [isLogin, setIsLogin] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
-    email: '',
-    password: '',
     firstName: '',
     lastName: '',
+    dateOfBirth: '',
+    gender: '',
+    phoneNumber: '',
+    city: '',
+    state: '',
+    email: '',
+    password: '',
+    profilePictures: [] as File[]
   });
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+  const [step, setStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const totalSteps = 3;
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    if (files.length > 5) {
+      toast({
+        title: "Too many files",
+        description: "Please select up to 5 profile pictures.",
+        variant: "destructive"
+      });
+      return;
+    }
+    setFormData(prev => ({ ...prev, profilePictures: files }));
+  };
+
+  const validateStep = (stepNumber: number) => {
+    switch (stepNumber) {
+      case 1:
+        return formData.firstName && formData.lastName && formData.dateOfBirth && formData.gender;
+      case 2:
+        return formData.city && formData.state && formData.email;
+      case 3:
+        return formData.profilePictures.length > 0;
+      default:
+        return false;
+    }
+  };
+
+  const handleSignup = async () => {
+    //e.preventDefault();
+
+    setIsSubmitting(true);
+
+    const redirectUrl = `${window.location.origin}/post-registration`;
     
-    if (isLogin) {
-      setIsLoading(true);
-      const { error } = await supabase.auth.signInWithPassword({
-        email: formData.email,
-        password: formData.password,
+    const { data: signupData, error } = await supabase.auth.signUp({
+      email: formData.email,
+      password: formData.password,
+      options: {
+        emailRedirectTo: redirectUrl,
+        data: {
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+        }
+      }
+    });
+
+
+    if (error) {
+      setIsSubmitting(false);
+      if (error.message.includes('already registered')) {
+        toast({
+          title: "Account already exists",
+          description: "This email is already registered. Try logging in instead.",
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Signup failed",
+          description: error.message,
+          variant: "destructive"
+        });
+      }
+    } else {
+
+    const user = signupData?.user;
+
+    if (user) {
+      // 1. Upload profile pictures
+      const uploadedUrls = [];
+      for (const file of formData.profilePictures) {
+        const { data: storageData, error: storageError } = await supabase
+          .storage
+          .from('profile-pictures')
+          .upload(`public/${user.id}/${file.name}`, file);
+
+        if (storageError) {
+          console.error('Upload error:', storageError.message);
+          continue;
+        }
+
+        const url = supabase.storage
+          .from('profile-pictures')
+          .getPublicUrl(`public/${user.id}/${file.name}`).data.publicUrl;
+
+        uploadedUrls.push(url);
+      }
+
+      // 2. Insert profile into `profiles` table
+      const { error: profileError } = await supabase.from('profiles').upsert({
+        id: user.id,
+        date_of_birth: formData.dateOfBirth,
+        gender: formData.gender,
+        city: formData.city,
+        state: formData.state,
+        phone_number: formData.phoneNumber,
+        profile_picture_urls: uploadedUrls,
       });
 
-      if (error) {
-        toast({
-          title: "Login failed",
-          description: error.message,
-          variant: "destructive",
-        });
+      if (profileError) {
+        console.error('Profile insert error:', profileError.message);
       }
-      setIsLoading(false);
-    } else {
-      // Signup flow
-      if (step === 1) {
-        if (!formData.email || !formData.password) {
-          toast({
-            title: "Missing fields",
-            description: "Please fill in all required fields.",
-            variant: "destructive",
-          });
-          return;
-        }
-        setStep(2);
-      } else if (step === 2) {
-        if (!formData.firstName || !formData.lastName) {
-          toast({
-            title: "Missing fields",
-            description: "Please provide your first and last name.",
-            variant: "destructive",
-          });
-          return;
-        }
-        setStep(3);
-      } else if (step === 3) {
-        setIsLoading(true);
-        
-        const { data, error } = await supabase.auth.signUp({
-          email: formData.email,
-          password: formData.password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/`,
-            data: {
-              first_name: formData.firstName,
-              last_name: formData.lastName,
-            }
-          }
-        });
+    }
+    setIsSubmitting(false);
+      toast({
+        title: "Check your email!",
+        description: "We've sent you a confirmation link to complete your registration.",
+      });
+    }
+    onComplete();
+    //setLoading(false);
+  };
 
-        if (error) {
-          toast({
-            title: "Signup failed",
-            description: error.message,
-            variant: "destructive",
-          });
-        } else if (data.user) {
-          // Check if email confirmation is required
-          const needsConfirmation = !data.session;
-          onSignupSuccess(formData.email, needsConfirmation);
-        }
-        
-        setIsLoading(false);
+
+  const handleNext = () => {
+    if (validateStep(step)) {
+      if (step === totalSteps) {
+        // Simulate successful registration
+        handleSignup()
+      } else {
+        setStep(step + 1);
       }
+    } else {
+      toast({
+        title: "Please complete all required fields",
+        description: "All fields marked with * are required.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handlePrevious = () => {
+    if (step > 1) {
+      setStep(step - 1);
+    } else {
+      onBack();
     }
   };
 
   return (
     <div className="min-h-screen gradient-bg">
       <div className="container mx-auto px-4 py-8">
-        <div className="max-w-md mx-auto">
+        <div className="max-w-2xl mx-auto">
+          {/* Header */}
+          <div className="mb-8">
+            <Button 
+              variant="ghost" 
+              onClick={handlePrevious}
+              className="mb-4 hover:bg-white/20"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back
+            </Button>
+            
+            <div className="text-center">
+              <h1 className="text-3xl font-bold text-foreground mb-2">Join Our Community</h1>
+              <p className="text-muted-foreground">Step {step} of {totalSteps}</p>
+              
+              {/* Progress Bar */}
+              <div className="w-full bg-muted rounded-full h-2 mt-4">
+                <div 
+                  className="bg-primary rounded-full h-2 transition-all duration-300"
+                  style={{ width: `${(step / totalSteps) * 100}%` }}
+                ></div>
+              </div>
+            </div>
+          </div>
+
           <Card className="gradient-card border-0 shadow-lg">
-            <CardHeader className="text-center">
-              <CardTitle className="text-2xl font-bold">{isLogin ? 'Login' : 'Create Account'}</CardTitle>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                {step === 1 && <><User className="w-5 h-5" /> What's your name?</>}
+                {step === 2 && <><MapPin className="w-5 h-5" /> Where do you live?</>}
+                {step === 3 && <><Upload className="w-5 h-5" /> Share your photo</>}
+              </CardTitle>
               <CardDescription>
-                {isLogin ? 'Enter your credentials to access your account' : 'Join our community and discover new events!'}
+                {step === 1 && "Let's start with some basic information about you."}
+                {step === 2 && "Help us connect you with believers in your area."}
+                {step === 3 && "Upload a clear photo of yourself (showing your face)."}
               </CardDescription>
             </CardHeader>
             
-            <CardContent className="space-y-4">
-              <form onSubmit={handleSubmit} className="space-y-4">
-                {!isLogin && step === 1 && (
-                  <>
+            <CardContent className="space-y-6">
+              {step === 1 && (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="email">Email</Label>
+                      <Label htmlFor="firstName">First Name *</Label>
                       <Input
-                        type="email"
-                        id="email"
-                        name="email"
-                        value={formData.email}
-                        onChange={handleInputChange}
-                        placeholder="Enter your email"
-                        required
-                        className="bg-white/50 border-white/20"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="password">Password</Label>
-                      <Input
-                        type="password"
-                        id="password"
-                        name="password"
-                        value={formData.password}
-                        onChange={handleInputChange}
-                        placeholder="Enter your password"
-                        required
-                        className="bg-white/50 border-white/20"
-                      />
-                    </div>
-                  </>
-                )}
-
-                {!isLogin && step === 2 && (
-                  <>
-                    <div className="space-y-2">
-                      <Label htmlFor="firstName">First Name</Label>
-                      <Input
-                        type="text"
                         id="firstName"
-                        name="firstName"
                         value={formData.firstName}
-                        onChange={handleInputChange}
-                        placeholder="Enter your first name"
-                        required
+                        onChange={(e) => handleInputChange('firstName', e.target.value)}
+                        placeholder="John"
                         className="bg-white/50 border-white/20"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="lastName">Last Name</Label>
+                      <Label htmlFor="lastName">Last Name *</Label>
                       <Input
-                        type="text"
                         id="lastName"
-                        name="lastName"
                         value={formData.lastName}
-                        onChange={handleInputChange}
-                        placeholder="Enter your last name"
-                        required
+                        onChange={(e) => handleInputChange('lastName', e.target.value)}
+                        placeholder="Smith"
                         className="bg-white/50 border-white/20"
                       />
                     </div>
-                  </>
-                )}
+                  </div>
 
-                {(isLogin || step === 3) && (
-                  <>
-                    {!isLogin && (
-                      <div className="mb-4 p-4 rounded-md bg-green-50 text-green-900 flex items-center space-x-2">
-                        <CheckCircle className="h-5 w-5" />
-                        <span>Almost there! Confirm your details and create your account.</span>
+                  <div className="space-y-2">
+                    <Label htmlFor="dateOfBirth">Date of Birth *</Label>
+                    <Input
+                      id="dateOfBirth"
+                      type="date"
+                      value={formData.dateOfBirth}
+                      onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
+                      className="bg-white/50 border-white/20"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="gender">Gender *</Label>
+                    <Select value={formData.gender} onValueChange={(value) => handleInputChange('gender', value)}>
+                      <SelectTrigger className="bg-white/50 border-white/20">
+                        <SelectValue placeholder="Select your gender" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="male">Male</SelectItem>
+                        <SelectItem value="female">Female</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              )}
+              {step === 2 && (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="city">City *</Label>
+                      <Input
+                        id="city"
+                        value={formData.city}
+                        onChange={(e) => handleInputChange('city', e.target.value)}
+                        placeholder="Dallas"
+                        className="bg-white/50 border-white/20"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="state">State *</Label>
+                      <Input
+                        id="state"
+                        value={formData.state}
+                        onChange={(e) => handleInputChange('state', e.target.value)}
+                        placeholder="TX"
+                        className="bg-white/50 border-white/20"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email *</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="email"
+                        type="email"
+                        value={formData.email}
+                        onChange={(e) => handleInputChange('email', e.target.value)}
+                        placeholder="john.smith@email.com"
+                        className="bg-white/50 border-white/20 pl-10"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Password</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="password"
+                        type="password"
+                        value={formData.password}
+                        onChange={(e) => handleInputChange('password', e.target.value)}
+                        placeholder="••••••••"
+                        className="bg-white/50 border-white/20 pl-10"
+                        required
+                        minLength={6}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="phoneNumber">Phone Number (Optional)</Label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="phoneNumber"
+                        type="tel"
+                        value={formData.phoneNumber}
+                        onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
+                        placeholder="(555) 123-4567"
+                        className="bg-white/50 border-white/20 pl-10"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {step === 3 && (
+                <>
+                  <div className="space-y-4">
+                    <div className="border-2 border-dashed border-muted rounded-lg p-8 text-center">
+                      <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                      <p className="text-lg font-medium mb-2">Upload Your Profile Pictures</p>
+                      <p className="text-muted-foreground mb-4">
+                        Choose 1-5 clear photos that show your face. This helps build trust in our community.
+                      </p>
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        onChange={handleFileUpload}
+                        className="hidden"
+                        id="profile-pictures"
+                      />
+                      <Label htmlFor="profile-pictures">
+                        <Button variant="outline" className="cursor-pointer" asChild>
+                          <span>Choose Photos</span>
+                        </Button>
+                      </Label>
+                    </div>
+
+                    {formData.profilePictures.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium">Selected Photos:</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {formData.profilePictures.map((file, index) => (
+                            <div key={index} className="bg-muted rounded p-2 text-sm">
+                              {file.name}
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
-                    
-                    {isLogin && (
-                      <>
-                        <div className="space-y-2">
-                          <Label htmlFor="email">Email</Label>
-                          <Input
-                            type="email"
-                            id="email"
-                            name="email"
-                            value={formData.email}
-                            onChange={handleInputChange}
-                            placeholder="Enter your email"
-                            required
-                            className="bg-white/50 border-white/20"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="password">Password</Label>
-                          <Input
-                            type="password"
-                            id="password"
-                            name="password"
-                            value={formData.password}
-                            onChange={handleInputChange}
-                            placeholder="Enter your password"
-                            required
-                            className="bg-white/50 border-white/20"
-                          />
-                        </div>
-                      </>
-                    )}
-                  </>
-                )}
 
-                <Button 
-                  type="submit" 
-                  className="w-full"
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <div className="flex items-center justify-center gap-2">
-                      <svg className="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24">
-                        <path fill="currentColor" d="M12 2V4M12 20V22M4.2 4.2L5.6 5.6M18.4 18.4L19.8 19.8M2 12H4M20 12H22M4.2 19.8L5.6 18.4M18.4 5.6L19.8 4.2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                      <span>{isLogin ? 'Logging in...' : 'Signing up...'}</span>
+                    <div className="bg-accent/20 rounded-lg p-4">
+                      <h4 className="font-medium text-accent-foreground mb-2">Photo Guidelines:</h4>
+                      <ul className="text-sm text-muted-foreground space-y-1">
+                        <li>• Show your face clearly</li>
+                        <li>• Use recent photos</li>
+                        <li>• Keep it family-friendly</li>
+                        <li>• Good lighting preferred</li>
+                      </ul>
                     </div>
-                  ) : (
-                    isLogin ? 'Login' : (step === 3 ? 'Create Account' : 'Next')
-                  )}
-                </Button>
-              </form>
+                  </div>
+                </>
+              )}
 
-              <div className="text-center">
-                <Button variant="link" onClick={() => setIsLogin(!isLogin)}>
-                  {isLogin ? 'Need an account? Sign up' : 'Already have an account? Login'}
-                </Button>
-              </div>
+              <Button 
+                onClick={handleNext}
+                className="w-full text-lg py-6 bg-primary hover:bg-primary/90 transition-all duration-300"
+              >
+                {step === totalSteps ? 'Create Account' : 'Continue'}
+              </Button>
             </CardContent>
           </Card>
         </div>

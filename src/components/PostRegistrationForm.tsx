@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,7 @@ const PostRegistrationForm = ({ userEmail, onBack, onComplete }: PostRegistratio
 
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
   const totalSteps = 3;
 
   const handleInputChange = (field: string, value: string) => {
@@ -48,7 +50,6 @@ const PostRegistrationForm = ({ userEmail, onBack, onComplete }: PostRegistratio
         return false;
     }
   };
-
   const saveProfileData = async () => {
     if (!user) {
       toast({
@@ -130,7 +131,6 @@ const PostRegistrationForm = ({ userEmail, onBack, onComplete }: PostRegistratio
               variant="ghost" 
               onClick={handlePrevious}
               className="mb-4 hover:bg-white/20"
-              disabled={isSubmitting}
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back
@@ -289,14 +289,9 @@ const PostRegistrationForm = ({ userEmail, onBack, onComplete }: PostRegistratio
 
               <Button 
                 onClick={handleNext}
-                disabled={isSubmitting}
                 className="w-full text-lg py-6 bg-primary hover:bg-primary/90 transition-all duration-300"
               >
-                {isSubmitting ? (
-                  'Saving...'
-                ) : (
-                  step === totalSteps ? 'Complete Profile' : 'Continue'
-                )}
+                {step === totalSteps ? 'Complete Profile' : 'Continue'}
               </Button>
             </CardContent>
           </Card>

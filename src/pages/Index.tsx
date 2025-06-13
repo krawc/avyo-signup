@@ -8,15 +8,16 @@ import { useNavigate } from 'react-router-dom';
 import Header from '@/components/Header';
 import SignupForm from '../components/SignupForm';
 import PostRegistrationForm from '../components/PostRegistrationForm';
+import EmailConfirmation from '../components/EmailConfirmation';
 
 const Index = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const [currentStep, setCurrentStep] = useState<'welcome' | 'signup' | 'post-registration'>('welcome');
+  const [currentStep, setCurrentStep] = useState<'welcome' | 'signup' | 'post-registration' | 'email-confirmation'>('welcome');
   const [userEmail, setUserEmail] = useState('');
 
   const handleSignupComplete = () => {
-    setCurrentStep('post-registration');
+    setCurrentStep('email-confirmation');
   };
 
   const handlePostRegistrationComplete = () => {
@@ -78,6 +79,10 @@ const Index = () => {
 
   if (currentStep === 'post-registration') {
     return <PostRegistrationForm userEmail={userEmail} onBack={() => setCurrentStep('signup')} onComplete={handlePostRegistrationComplete} />;
+  }
+
+  if (currentStep === 'email-confirmation') {
+    return <EmailConfirmation userEmail={userEmail} onBack={() => setCurrentStep('signup')} />;
   }
 
   return (
@@ -175,14 +180,14 @@ const Index = () => {
               <div className="space-y-4">
                 <Button 
                   onClick={() => navigate('/auth')} 
-                  className="w-full text-lg py-6 bg-primary hover:bg-primary/90 transition-all duration-300"
+                  variant="outline"
+                  className="w-full text-lg py-6 border-primary/20 hover:bg-primary/10 transition-all duration-300"
                 >
                   Join Our Community
                 </Button>
                 <Button 
-                  variant="outline"
+                  className="w-full text-lg py-6 bg-primary hover:bg-primary/90 transition-all duration-300"
                   onClick={() => setCurrentStep('signup')} 
-                  className="w-full text-lg py-6 border-primary/20 hover:bg-primary/10 transition-all duration-300"
                 >
                   Complete Registration Form
                 </Button>

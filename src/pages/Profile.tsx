@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Calendar, MapPin, Church, Heart, Users, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Header from '@/components/Header';
+import { getSignedUrls } from '@/lib/utils'
 
 interface Profile {
   id: string;
@@ -52,19 +53,30 @@ const Profile = () => {
 
   const fetchProfile = async () => {
     if (!user) return;
-
+  
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', user.id)
       .single();
-
+  
     if (error) {
       console.error('Error fetching profile:', error);
+      return;
+    }
+  
+    // If there are image URLs, generate signed versions
+    if (data.profile_picture_urls && data.profile_picture_urls.length > 0) {
+      const signedUrls = await getSignedUrls(data.profile_picture_urls);
+      setProfile({
+        ...data,
+        profile_picture_urls: signedUrls,
+      });
     } else {
       setProfile(data);
     }
   };
+  
 
   const fetchMyEvents = async () => {
     if (!user) return;
@@ -120,6 +132,8 @@ const Profile = () => {
       </div>
     );
   }
+
+  console.log(profile)
 
   return (
     <div className="min-h-screen gradient-bg">
