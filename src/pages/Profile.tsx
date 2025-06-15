@@ -230,7 +230,7 @@ const Profile = () => {
                           {event.description && (
                             <p className="text-muted-foreground mt-1">{event.description}</p>
                           )}
-                          <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+                          <div className="flex sm-items-center gap-4 my-4 text-sm text-muted-foreground flex-col sm-flex-row">
                             <div className="flex items-center gap-1">
                               <Calendar className="h-4 w-4" />
                               {formatDate(event.start_date)}

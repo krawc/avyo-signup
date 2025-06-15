@@ -154,15 +154,15 @@ const EventDetails = () => {
           {/* Event Header */}
           <Card className="gradient-card border-0 shadow-lg">
             <CardHeader>
-              <div className="flex justify-between items-start">
+              <div className="flex justify-between items-start flex-col sm-flex-row">
                 <div className="flex-1">
-                  <CardTitle className="text-3xl font-serif">{event.title}</CardTitle>
+                  <CardTitle className="text-3xl ">{event.title}</CardTitle>
                   {event.description && (
                     <CardDescription className="text-lg mt-2">
                       {event.description}
                     </CardDescription>
                   )}
-                  <div className="flex items-center gap-6 mt-4 text-muted-foreground">
+                  <div className="flex sm-items-center gap-4 my-4 text-muted-foreground flex-col sm-flex-row">
                     <div className="flex items-center gap-2">
                       <Calendar className="h-5 w-5" />
                       {formatDate(event.start_date)}

@@ -177,9 +177,9 @@ const LocationShare = ({ eventId, connectionId }: LocationShareProps) => {
   };
 
   return (
-    <Card className="glassmorphic border-white/30">
+    <Card className="border-white/30">
       <CardHeader className="pb-3">
-        <CardTitle className="text-sm font-serif flex items-center gap-2">
+        <CardTitle className="text-sm  flex items-center gap-2">
           <MapPin className="h-4 w-4" />
           Live Locations
         </CardTitle>

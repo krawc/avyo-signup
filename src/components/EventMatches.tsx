@@ -147,7 +147,7 @@ const EventMatches = ({ eventId }: EventMatchesProps) => {
   return (
     <Card className="gradient-card border-0 shadow-lg">
       <CardContent className="p-6">
-        <h3 className="text-xl font-serif font-semibold mb-4 flex items-center gap-2">
+        <h3 className="text-xl  font-semibold mb-4 flex items-center gap-2">
           <Heart className="h-5 w-5 text-pink-500" />
           Your Matches
         </h3>
@@ -156,7 +156,7 @@ const EventMatches = ({ eventId }: EventMatchesProps) => {
           <CarouselContent>
             {matches.map((match) => (
               <CarouselItem key={match.user_id} className="md:basis-1/2 lg:basis-1/3">
-                <Card className="glassmorphic border-white/30">
+                <Card className="border">
                   <CardContent className="p-4">
                     <div className="text-center space-y-4">
                       <Avatar className="h-20 w-20 mx-auto ring-2 ring-white/50">
@@ -170,7 +170,7 @@ const EventMatches = ({ eventId }: EventMatchesProps) => {
                       </Avatar>
                       
                       <div>
-                        <h4 className="font-serif font-semibold text-lg">
+                        <h4 className=" font-semibold text-lg">
                           {getDisplayName(match.profile)}
                         </h4>
                         
@@ -204,7 +204,7 @@ const EventMatches = ({ eventId }: EventMatchesProps) => {
                         </Button>
                         <Button 
                           size="sm" 
-                          className="flex-1 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600"
+                          className="flex-1 bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700"
                           onClick={() => sendConnectionRequest(match.user_id)}
                         >
                           <Heart className="h-4 w-4" />

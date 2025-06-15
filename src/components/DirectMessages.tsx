@@ -234,10 +234,10 @@ const DirectMessages = ({ eventId }: DirectMessagesProps) => {
 
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-serif font-semibold">Messages & Location</h3>
+      <h3 className="text-lg  font-semibold">Messages & Location</h3>
       
       <Tabs value={selectedConnection || ''} onValueChange={setSelectedConnection} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <TabsList className="grid w-full h-auto grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {connections.slice(0, 4).map((connection) => {
             const { profile } = getConnectionInfo(connection);
             return (
@@ -265,9 +265,9 @@ const DirectMessages = ({ eventId }: DirectMessagesProps) => {
           <TabsContent key={connection.id} value={connection.id} className="mt-4">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {/* Messages */}
-              <Card className="glassmorphic border-white/30">
+              <Card className="border">
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-serif">
+                  <CardTitle className="text-sm ">
                     Chat with {getDisplayName(getConnectionInfo(connection).profile)}
                   </CardTitle>
                 </CardHeader>

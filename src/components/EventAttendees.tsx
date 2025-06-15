@@ -190,7 +190,7 @@ const EventAttendees = ({ eventId }: EventAttendeesProps) => {
 
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-serif font-semibold">Event Attendees ({attendees.length})</h3>
+      <h3 className="text-lg  font-semibold">Event Attendees ({attendees.length})</h3>
       <div className="grid gap-4">
         {attendees.map((attendee) => {
           const buttonProps = getConnectionButtonProps(attendee.user_id);
