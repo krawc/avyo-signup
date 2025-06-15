@@ -165,6 +165,63 @@ export type Database = {
           },
         ]
       }
+      event_payments: {
+        Row: {
+          access_expires_at: string | null
+          amount: number
+          created_at: string
+          currency: string
+          event_id: string
+          id: string
+          is_post_event: boolean
+          status: string
+          stripe_session_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_expires_at?: string | null
+          amount: number
+          created_at?: string
+          currency?: string
+          event_id: string
+          id?: string
+          is_post_event?: boolean
+          status?: string
+          stripe_session_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_expires_at?: string | null
+          amount?: number
+          created_at?: string
+          currency?: string
+          event_id?: string
+          id?: string
+          is_post_event?: boolean
+          status?: string
+          stripe_session_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_payments_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_payments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       events: {
         Row: {
           created_at: string

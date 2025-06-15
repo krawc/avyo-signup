@@ -30,6 +30,20 @@ interface PaymentAccess {
   isPostEvent: boolean;
 }
 
+interface EventPayment {
+  id: string;
+  user_id: string;
+  event_id: string;
+  stripe_session_id: string;
+  amount: number;
+  currency: string;
+  status: string;
+  is_post_event: boolean;
+  access_expires_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 const EventDetails = () => {
   const { eventId } = useParams<{ eventId: string }>();
   const { user } = useAuth();
@@ -84,22 +98,27 @@ const EventDetails = () => {
     if (!eventId || !user) return;
 
     // Check if user has paid for this event
-    const { data: payment } = await supabase
-      .from('event_payments')
+    const { data: payment, error } = await supabase
+      .from('event_payments' as any)
       .select('*')
       .eq('event_id', eventId)
       .eq('user_id', user.id)
       .eq('status', 'paid')
-      .single();
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error checking payment:', error);
+    }
 
     if (payment) {
+      const paymentData = payment as EventPayment;
       const now = new Date();
       const eventDate = event ? new Date(event.start_date) : new Date();
       const isEventEnded = now > eventDate;
       
       // Check if access has expired (for post-event payments)
-      if (payment.is_post_event && payment.access_expires_at) {
-        const expiresAt = new Date(payment.access_expires_at);
+      if (paymentData.is_post_event && paymentData.access_expires_at) {
+        const expiresAt = new Date(paymentData.access_expires_at);
         const hasValidAccess = now < expiresAt;
         setPaymentAccess({ 
           hasAccess: hasValidAccess, 
@@ -107,7 +126,7 @@ const EventDetails = () => {
         });
       } else {
         setPaymentAccess({ 
-          hasAccess: !isEventEnded || payment.is_post_event, 
+          hasAccess: !isEventEnded || paymentData.is_post_event, 
           isPostEvent: isEventEnded 
         });
       }
@@ -135,7 +154,7 @@ const EventDetails = () => {
       .select('id')
       .eq('event_id', eventId)
       .eq('user_id', user.id)
-      .single();
+      .maybeSingle();
 
     if (!error && data) {
       setIsAttending(true);
