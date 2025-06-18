@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, MapPin, Church, Heart, Users, User } from 'lucide-react';
+import { Calendar, MapPin, Church, Heart, Users, User, ScanQrCode } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Header from '@/components/Header';
 import { getSignedUrls } from '@/lib/utils'
@@ -200,13 +200,26 @@ const Profile = () => {
           {/* My Events Section */}
           <Card className="gradient-card border-0 shadow-lg">
             <CardHeader>
-              <CardTitle className="text-2xl flex items-center gap-2">
-                <Calendar className="h-6 w-6 text-primary" />
-                My Events
-              </CardTitle>
-              <CardDescription>
-                Events you're attending or have attended
-              </CardDescription>
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle className="text-2xl flex items-center gap-2">
+                    <Calendar className="h-6 w-6 text-primary" />
+                    My Events
+                  </CardTitle>
+                  <CardDescription>
+                    Events you're attending or have attended
+                  </CardDescription>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate('/qr-scanner')}
+                  className="flex items-center gap-2"
+                >
+                  <ScanQrCode className="h-4 w-4" />
+                  QR Scanner
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               {myEvents.length === 0 ? (

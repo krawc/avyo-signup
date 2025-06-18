@@ -3,7 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Church, User, LogOut } from 'lucide-react';
+import { Church, User, LogOut, ScanQrCode } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const Header = () => {
@@ -39,6 +39,10 @@ const Header = () => {
                 <DropdownMenuItem onClick={() => navigate('/profile')} className="cursor-pointer">
                   <User className="mr-2 h-4 w-4" />
                   View Profile
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/qr-scanner')} className="cursor-pointer">
+                  <ScanQrCode className="mr-2 h-4 w-4" />
+                  QR Scanner
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
                   <LogOut className="mr-2 h-4 w-4" />

@@ -11,6 +11,7 @@ import Profile from "./pages/Profile";
 import Events from "./pages/Events";
 import PostRegistration from "./pages/PostRegistration";
 import EventDetails from "./pages/EventDetails";
+import QRScanner from "./pages/QRScanner";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
