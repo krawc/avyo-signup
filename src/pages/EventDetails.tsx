@@ -57,7 +57,7 @@ const EventDetails = () => {
 
   useEffect(() => {
     if (!user) {
-      navigate('/auth');
+      //navigate('/auth');
       return;
     }
 
@@ -217,6 +217,7 @@ const EventDetails = () => {
   }
 
   const needsPayment = !paymentAccess.hasAccess;
+  //const needsPayment = false;
 
   return (
     <div className="min-h-screen gradient-bg">
@@ -239,11 +240,11 @@ const EventDetails = () => {
           )}
 
           {/* Event Header */}
-          <Card className="gradient-card border-0 shadow-lg relative">
+          <Card className="gradient-card border-0 shadow-lg relative z-10">
             <CardHeader>
               <div className="flex justify-between items-start flex-col sm:flex-row">
                 <div className="flex-1">
-                  <CardTitle className="text-3xl font-['Crimson_Text']">{event.title}</CardTitle>
+                  <CardTitle className="text-3xl">{event.title}</CardTitle>
                   {event.description && (
                     <CardDescription className="text-lg mt-2">
                       {event.description}
@@ -287,8 +288,8 @@ const EventDetails = () => {
           </Card>
 
           {/* Event Content - Only show if user has paid */}
-          {!needsPayment && (
-            <>
+
+            <div className={needsPayment ? 'blur-xl pointer-events-none overflow-hidden' : ''}>
               {/* Event Matches */}
               <EventMatches eventId={event.id} />
 
@@ -321,17 +322,8 @@ const EventDetails = () => {
                     </TabsContent>
                   </Tabs>
                 </CardContent>
-                
-                {needsPayment && (
-                  <PaymentOverlay 
-                    eventId={event.id}
-                    eventTitle={event.title}
-                    isPostEvent={paymentAccess.isPostEvent}
-                  />
-                )}
               </Card>
-            </>
-          )}
+            </div>
         </div>
       </div>
     </div>

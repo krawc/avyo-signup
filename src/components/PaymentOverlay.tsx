@@ -46,7 +46,7 @@ const PaymentOverlay = ({ eventId, eventTitle, isPostEvent = false, onPaymentSuc
     : 'Join this event and access all features including matches, connections, and live chat.';
 
   return (
-    <div className="absolute inset-0 bg-white/80 backdrop-blur-md flex items-center justify-center z-10">
+    <div className="fixed inset-0 z-10 flex items-center justify-center bg-white/95 backdrop-blur-md mt-50">
       <Card className="w-full max-w-md mx-4 gradient-card border-0 shadow-2xl">
         <CardHeader className="text-center">
           <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">

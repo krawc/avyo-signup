@@ -43,7 +43,7 @@ const Profile = () => {
 
   useEffect(() => {
     if (!user) {
-      navigate('/auth');
+      //navigate('/auth');
       return;
     }
 

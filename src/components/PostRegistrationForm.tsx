@@ -138,7 +138,7 @@ const PostRegistrationForm = ({ userEmail, onBack, onComplete }: PostRegistratio
             
             <div className="text-center">
               <h1 className="text-3xl font-bold text-foreground mb-2">Complete Your Profile</h1>
-              <p className="text-muted-foreground">Step {step} of {totalSteps} • Welcome, {userEmail}!</p>
+              <p className="text-muted-foreground">Step {step} of {totalSteps} • Welcome!</p>
               
               {/* Progress Bar */}
               <div className="w-full bg-muted rounded-full h-2 mt-4">
