@@ -60,6 +60,8 @@ const LocationMap = ({ locations, children }: LocationMapProps) => {
         zoom: 9
       });
 
+      console.log(map)
+
       map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
       
       map.current.on('load', () => {
