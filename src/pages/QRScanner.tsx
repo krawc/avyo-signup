@@ -26,32 +26,52 @@ const QRScanner = () => {
 
   const startScanning = async () => {
     if (!videoRef.current || !readerRef.current) return;
-
+  
     try {
       setIsScanning(true);
       setError(null);
+  
+      const devices = await readerRef.current.listVideoInputDevices();
+      let selectedDeviceId: string | undefined;
+  
+      // Try to find a rear camera
+      for (const device of devices) {
+        if (device.label.toLowerCase().includes('back') || device.label.toLowerCase().includes('environment')) {
+          selectedDeviceId = device.deviceId;
+          break;
+        }
+      }
+  
+      // Fallback to first available device
+      if (!selectedDeviceId && devices.length > 0) {
+        selectedDeviceId = devices[0].deviceId;
+      }
 
-      const result = await readerRef.current.decodeFromVideoDevice(
-        undefined,
+      console.log(selectedDeviceId)
+  
+      if (!selectedDeviceId) {
+        throw new Error('No video input devices found');
+      }
+  
+      await readerRef.current.decodeFromVideoDevice(
+        selectedDeviceId,
         videoRef.current,
         (result) => {
           if (result) {
             const text = result.getText();
             console.log('QR Code detected:', text);
-            
-            // Check if it's a URL
+  
             try {
               const url = new URL(text);
               window.open(url.href, '_blank');
             } catch {
-              // If it's not a valid URL, try navigating to it as a relative path
               if (text.startsWith('/')) {
                 navigate(text);
               } else {
                 setError('QR code does not contain a valid link');
               }
             }
-            
+  
             stopScanning();
           }
         }
@@ -62,6 +82,7 @@ const QRScanner = () => {
       setIsScanning(false);
     }
   };
+  
 
   const stopScanning = () => {
     if (readerRef.current) {

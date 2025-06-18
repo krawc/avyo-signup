@@ -29,6 +29,7 @@ const App = () => (
             <Route path="/profile" element={<Profile />} />
             <Route path="/events" element={<Events />} />
             <Route path="/post-registration" element={<PostRegistration />} />
+            <Route path="/qr-scanner" element={<QRScanner />} />
             <Route path="/events/:eventId" element={<EventDetails />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

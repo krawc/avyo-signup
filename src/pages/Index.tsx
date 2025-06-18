@@ -45,7 +45,6 @@ const Index = () => {
           <Card className="gradient-card border-0 shadow-lg max-w-2xl mx-auto">
             <CardHeader className="text-center">
               <CardTitle className="text-3xl flex items-center justify-center gap-2">
-                <Heart className="w-8 h-8 text-primary" />
                 Welcome to AVYO In-Gathering!
               </CardTitle>
               <CardDescription className="text-lg">
@@ -93,7 +92,7 @@ const Index = () => {
         <div className="text-center mb-12">
           <div className="flex justify-center items-center gap-2 mb-4">
             <Church className="w-8 h-8 text-primary" />
-            <h1 className="text-4xl font-bold text-foreground">AVYO In-Gathering</h1>
+            <h1 className="text-2xl font-bold text-foreground">AVYO In-Gathering</h1>
           </div>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
             A Christian community where faith meets fellowship. Connect with believers, share your journey, and grow together in Christ.
@@ -113,7 +112,7 @@ const Index = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <ul className="space-y-2 text-muted-foreground">
+              <ul className="space-y-2 text-xs text-muted-foreground">
                 <li className="flex items-center gap-2">
                   <div className="w-2 h-2 bg-primary rounded-full"></div>
                   Connect with local believers in your area
@@ -145,7 +144,7 @@ const Index = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <ul className="space-y-2 text-muted-foreground">
+              <ul className="space-y-2 text-xs text-muted-foreground">
                 <li className="flex items-center gap-2">
                   <div className="w-2 h-2 bg-primary rounded-full"></div>
                   Verified Christian community members
