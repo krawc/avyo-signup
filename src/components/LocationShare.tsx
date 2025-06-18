@@ -5,8 +5,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { User, MapPin, Clock } from 'lucide-react';
+import { User, MapPin, Clock, Map } from 'lucide-react';
 import { getSignedUrls } from '@/lib/utils';
+import LocationMap from './LocationMap';
 
 interface LocationShare {
   id: string;
@@ -179,9 +180,19 @@ const LocationShare = ({ eventId, connectionId }: LocationShareProps) => {
   return (
     <Card className="border-white/30">
       <CardHeader className="pb-3">
-        <CardTitle className="text-sm  flex items-center gap-2">
-          <MapPin className="h-4 w-4" />
-          Live Locations
+        <CardTitle className="text-sm flex items-center gap-2 justify-between">
+          <div className="flex items-center gap-2">
+            <MapPin className="h-4 w-4" />
+            Live Locations
+          </div>
+          {locations.length > 0 && (
+            <LocationMap locations={locations}>
+              <Button variant="ghost" size="sm" className="text-xs">
+                <Map className="h-3 w-3 mr-1" />
+                View Map
+              </Button>
+            </LocationMap>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
