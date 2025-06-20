@@ -311,6 +311,33 @@ export type Database = {
           },
         ]
       }
+      match_responses: {
+        Row: {
+          created_at: string
+          event_id: string
+          id: string
+          response: string
+          target_user_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          id?: string
+          response: string
+          target_user_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          id?: string
+          response?: string
+          target_user_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       matches: {
         Row: {
           compatibility_score: number | null
@@ -425,7 +452,15 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      mutual_matches: {
+        Row: {
+          event_id: string | null
+          match_date: string | null
+          user1_id: string | null
+          user2_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       [_ in never]: never

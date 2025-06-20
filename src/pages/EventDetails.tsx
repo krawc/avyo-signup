@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -288,42 +287,41 @@ const EventDetails = () => {
           </Card>
 
           {/* Event Content - Only show if user has paid */}
+          <div className={needsPayment ? 'blur-xl pointer-events-none overflow-hidden' : ''}>
+            {/* Event Matches */}
+            <EventMatches eventId={event.id} />
 
-            <div className={needsPayment ? 'blur-xl pointer-events-none overflow-hidden' : ''}>
-              {/* Event Matches */}
-              <EventMatches eventId={event.id} />
-
-              {/* Event Tabs */}
-              <Card className="gradient-card border-0 shadow-lg relative">
-                <CardContent className="p-6">
-                  <Tabs defaultValue="attendees" className="w-full">
-                    <TabsList className="grid w-full grid-cols-3">
-                      <TabsTrigger value="attendees" className="flex items-center gap-2">
-                        <Users className="h-4 w-4" />
-                        Attendees
-                      </TabsTrigger>
-                      <TabsTrigger value="connections" className="flex items-center gap-2">
-                        <Heart className="h-4 w-4" />
-                        Connections
-                      </TabsTrigger>
-                      <TabsTrigger value="messages" className="flex items-center gap-2">
-                        <MessageCircle className="h-4 w-4" />
-                        Messages
-                      </TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="attendees" className="mt-6">
-                      <EventAttendees eventId={event.id} />
-                    </TabsContent>
-                    <TabsContent value="connections" className="mt-6">
-                      <EventConnections eventId={event.id} />
-                    </TabsContent>
-                    <TabsContent value="messages" className="mt-6">
-                      <DirectMessages eventId={event.id} />
-                    </TabsContent>
-                  </Tabs>
-                </CardContent>
-              </Card>
-            </div>
+            {/* Event Tabs */}
+            <Card className="gradient-card border-0 shadow-lg relative">
+              <CardContent className="p-6">
+                <Tabs defaultValue="attendees" className="w-full">
+                  <TabsList className="grid w-full grid-cols-3">
+                    <TabsTrigger value="attendees" className="flex items-center gap-2" data-tab="attendees">
+                      <Users className="h-4 w-4" />
+                      Attendees
+                    </TabsTrigger>
+                    <TabsTrigger value="connections" className="flex items-center gap-2" data-tab="connections">
+                      <Heart className="h-4 w-4" />
+                      Connections
+                    </TabsTrigger>
+                    <TabsTrigger value="messages" className="flex items-center gap-2" data-tab="messages">
+                      <MessageCircle className="h-4 w-4" />
+                      Messages
+                    </TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="attendees" className="mt-6">
+                    <EventAttendees eventId={event.id} />
+                  </TabsContent>
+                  <TabsContent value="connections" className="mt-6">
+                    <EventConnections eventId={event.id} />
+                  </TabsContent>
+                  <TabsContent value="messages" className="mt-6">
+                    <DirectMessages eventId={event.id} />
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </div>
