@@ -190,7 +190,7 @@ const SignupForm = ({ onComplete, onBack }: SignupFormProps) => {
             </Button>
             
             <div className="text-center">
-              <h1 className="text-3xl font-bold text-foreground mb-2">Join Our Community</h1>
+              <h1 className="text-3xl font-bold text-foreground mb-2">Meet other singles</h1>
               <p className="text-muted-foreground">Step {step} of {totalSteps}</p>
               
               {/* Progress Bar */}

@@ -172,7 +172,7 @@ const Index = () => {
             <CardHeader>
               <CardTitle className="text-2xl">Ready to Join?</CardTitle>
               <CardDescription>
-                Create your account and become part of our growing faith community
+                Create you account and begin to connect!
               </CardDescription>
             </CardHeader>
             <CardContent>
