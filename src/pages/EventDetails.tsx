@@ -112,11 +112,13 @@ const EventDetails = () => {
 
     console.log('payment checked')
 
+    console.log(payment)
+
     if (payment) {
       console.log(payment)
 
       const now = new Date();
-      const eventDate = event ? new Date(event.start_date) : new Date();
+      const eventDate = event ? new Date(event.end_date) : new Date();
       const isEventEnded = now > eventDate;
       
       // Check if access has expired (for post-event payments)
@@ -136,8 +138,9 @@ const EventDetails = () => {
     } else {
       // No payment found
       const now = new Date();
-      const eventDate = event ? new Date(event.start_date) : new Date();
+      const eventDate = event ? new Date(event.end_date) : new Date();
       const isEventEnded = now > eventDate;
+      console.log(event, isEventEnded)
       
       setPaymentAccess({ 
         hasAccess: false, 

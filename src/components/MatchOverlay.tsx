@@ -35,13 +35,13 @@ const MatchOverlay = ({ match, onClose, onGoToDM }: MatchOverlayProps) => {
     loadProfileImage();
   }, [match]);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      onClose();
-    }, 3000);
+  // useEffect(() => {
+  //   const timer = setTimeout(() => {
+  //     onClose();
+  //   }, 3000);
 
-    return () => clearTimeout(timer);
-  }, [onClose]);
+  //   return () => clearTimeout(timer);
+  // }, [onClose]);
 
   const getDisplayName = () => {
     if (match.profile?.display_name) return match.profile.display_name;
