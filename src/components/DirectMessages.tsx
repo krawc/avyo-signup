@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { User, Send, MapPin, Users } from 'lucide-react';
+import { User, Send, Users } from 'lucide-react';
 import LocationShare from './LocationShare';
 import { getSignedUrls } from '@/lib/utils';
 
@@ -234,7 +234,7 @@ const DirectMessages = ({ eventId }: DirectMessagesProps) => {
 
   return (
     <div className="space-y-4">
-      <h3 className="text-lg  font-semibold">Messages & Location</h3>
+      <h3 className="text-lg font-semibold">Messages & Location</h3>
       
       <Tabs value={selectedConnection || ''} onValueChange={setSelectedConnection} className="w-full">
         <TabsList className="grid w-full h-auto grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -267,7 +267,7 @@ const DirectMessages = ({ eventId }: DirectMessagesProps) => {
               {/* Messages */}
               <Card className="border">
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-sm ">
+                  <CardTitle className="text-sm">
                     Chat with {getDisplayName(getConnectionInfo(connection).profile)}
                   </CardTitle>
                 </CardHeader>
@@ -317,7 +317,7 @@ const DirectMessages = ({ eventId }: DirectMessagesProps) => {
               </Card>
 
               {/* Location Sharing */}
-              <LocationShare eventId={eventId} connectionId={connection.id} />
+              <LocationShare connectionId={connection.id} />
             </div>
           </TabsContent>
         ))}

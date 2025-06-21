@@ -268,8 +268,8 @@ export type Database = {
       }
       location_shares: {
         Row: {
+          connection_id: string
           created_at: string
-          event_id: string
           expires_at: string
           id: string
           latitude: number
@@ -277,8 +277,8 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          connection_id: string
           created_at?: string
-          event_id: string
           expires_at: string
           id?: string
           latitude: number
@@ -286,8 +286,8 @@ export type Database = {
           user_id: string
         }
         Update: {
+          connection_id?: string
           created_at?: string
-          event_id?: string
           expires_at?: string
           id?: string
           latitude?: number
@@ -296,10 +296,10 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "location_shares_event_id_fkey"
-            columns: ["event_id"]
+            foreignKeyName: "location_shares_connection_id_fkey"
+            columns: ["connection_id"]
             isOneToOne: false
-            referencedRelation: "events"
+            referencedRelation: "connections"
             referencedColumns: ["id"]
           },
           {

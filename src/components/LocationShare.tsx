@@ -25,11 +25,10 @@ interface LocationShare {
 }
 
 interface LocationShareProps {
-  eventId: string;
   connectionId: string;
 }
 
-const LocationShare = ({ eventId, connectionId }: LocationShareProps) => {
+const LocationShare = ({ connectionId }: LocationShareProps) => {
   const { user } = useAuth();
   const [locations, setLocations] = useState<LocationShare[]>([]);
   const [sharing, setSharing] = useState(false);
@@ -50,7 +49,7 @@ const LocationShare = ({ eventId, connectionId }: LocationShareProps) => {
     return () => {
       subscription.unsubscribe();
     };
-  }, [eventId]);
+  }, [connectionId]);
 
   const fetchLocations = async () => {
     const { data, error } = await supabase
@@ -64,7 +63,7 @@ const LocationShare = ({ eventId, connectionId }: LocationShareProps) => {
           profile_picture_urls
         )
       `)
-      .eq('event_id', eventId)
+      .eq('connection_id', connectionId)
       .gt('expires_at', new Date().toISOString());
 
     if (error) {
@@ -104,7 +103,7 @@ const LocationShare = ({ eventId, connectionId }: LocationShareProps) => {
         navigator.geolocation.getCurrentPosition(async (position) => {
           const { latitude, longitude } = position.coords;
           
-          // Set expiration to end of event (or 24 hours from now as fallback)
+          // Set expiration to 24 hours from now
           const expiresAt = new Date();
           expiresAt.setHours(expiresAt.getHours() + 24);
 
@@ -112,12 +111,12 @@ const LocationShare = ({ eventId, connectionId }: LocationShareProps) => {
             .from('location_shares')
             .upsert({
               user_id: user.id,
-              event_id: eventId,
+              connection_id: connectionId,
               latitude,
               longitude,
               expires_at: expiresAt.toISOString()
             }, {
-              onConflict: 'user_id,event_id'
+              onConflict: 'user_id,connection_id'
             });
 
           if (error) {
@@ -147,7 +146,7 @@ const LocationShare = ({ eventId, connectionId }: LocationShareProps) => {
       .from('location_shares')
       .delete()
       .eq('user_id', user.id)
-      .eq('event_id', eventId);
+      .eq('connection_id', connectionId);
 
     if (error) {
       console.error('Error stopping location share:', error);
