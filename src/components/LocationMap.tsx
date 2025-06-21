@@ -31,16 +31,17 @@ interface LocationMapProps {
 const LocationMap = ({ locations, children }: LocationMapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
-  const [mapboxToken, setMapboxToken] = useState('');
+  const [mapboxToken, setMapboxToken] = useState('pk.eyJ1Ijoia3Jhd2MiLCJhIjoiY2xtdWp3ZzViMGpjeTJrb2NtaHVuZWl1biJ9.xCUOYkJHjQ2oEWBzBqc66w');
   const [isMapReady, setIsMapReady] = useState(false);
   const [showTokenInput, setShowTokenInput] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
   const markers = useRef<mapboxgl.Marker[]>([]);
 
   useEffect(() => {
     // Check if token exists in localStorage
-    const savedToken = localStorage.getItem('mapbox_token');
-    if (savedToken) {
-      setMapboxToken(savedToken);
+    // const savedToken = localStorage.getItem('mapbox_token');
+    if (mapboxToken) {
+      // setMapboxToken(savedToken);
       setIsMapReady(true);
     } else {
       setShowTokenInput(true);
@@ -48,7 +49,12 @@ const LocationMap = ({ locations, children }: LocationMapProps) => {
   }, []);
 
   const initializeMap = () => {
+
+    console.log(mapContainer.current, mapboxToken)
+
     if (!mapContainer.current || !mapboxToken) return;
+
+    console.log('initializeMap running')
 
     try {
       mapboxgl.accessToken = mapboxToken;
@@ -59,6 +65,8 @@ const LocationMap = ({ locations, children }: LocationMapProps) => {
         center: [-74.5, 40],
         zoom: 9
       });
+
+      console.log('got the map')
 
       console.log(map)
 
@@ -167,13 +175,18 @@ const LocationMap = ({ locations, children }: LocationMapProps) => {
   }, [locations, isMapReady]);
 
   useEffect(() => {
-    if (mapboxToken && !map.current) {
+    if (dialogOpen && mapContainer.current) {
       initializeMap();
     }
-  }, [mapboxToken]);
+  
+    // Resize if re-opening dialog with existing map
+    // if (dialogOpen && map.current) {
+    //   map.current.resize();
+    // }
+  }, [dialogOpen, mapContainer.current]);
 
   return (
-    <Dialog>
+    <Dialog onOpenChange={(open) => setDialogOpen(open)}>
       <DialogTrigger asChild>
         {children}
       </DialogTrigger>
@@ -184,13 +197,13 @@ const LocationMap = ({ locations, children }: LocationMapProps) => {
               <MapPin className="h-5 w-5" />
               Live Locations Map
             </DialogTitle>
-            <Button
+            {/* <Button
               variant="ghost"
               size="sm"
               onClick={() => setShowTokenInput(true)}
             >
               <Settings className="h-4 w-4" />
-            </Button>
+            </Button> */}
           </div>
         </DialogHeader>
 
@@ -219,20 +232,11 @@ const LocationMap = ({ locations, children }: LocationMapProps) => {
           </div>
         )}
 
+
         <div className="relative h-[500px]">
-          {!isMapReady ? (
-            <div className="flex items-center justify-center h-full bg-gray-100">
-              <div className="text-center">
-                <MapPin className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-600">
-                  {!mapboxToken ? 'Please enter your Mapbox token to view the map' : 'Initializing map...'}
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div ref={mapContainer} className="w-full h-full" />
-          )}
+          <div ref={mapContainer} className="w-full h-full" />
         </div>
+
 
         {locations.length === 0 && isMapReady && (
           <div className="absolute inset-0 flex items-center justify-center bg-white/80">
