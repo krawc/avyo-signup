@@ -78,7 +78,7 @@ serve(async (req) => {
         // Post-event payments: 3 months from payment date
         accessExpiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
       } else {
-        // Regular payments: access expires when event ends
+        // Regular payments: access expires when event ends (or starts if no end date)
         accessExpiresAt = eventData.end_date ? new Date(eventData.end_date) : new Date(eventData.start_date);
       }
 
@@ -96,6 +96,21 @@ serve(async (req) => {
           access_expires_at: accessExpiresAt.toISOString(),
           updated_at: new Date().toISOString()
         }, { onConflict: 'user_id,event_id' });
+
+      // Generate matches for the user after successful payment
+      try {
+        const { error: matchError } = await supabaseService.functions.invoke('generate-matches', {
+          body: { eventId, userId }
+        });
+
+        if (matchError) {
+          console.error('Error generating matches:', matchError);
+          // Don't throw here - payment was successful, matches can be generated later
+        }
+      } catch (matchError) {
+        console.error('Error calling generate-matches function:', matchError);
+        // Don't throw here - payment was successful, matches can be generated later
+      }
 
       return new Response(JSON.stringify({ 
         success: true, 
