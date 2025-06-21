@@ -294,27 +294,27 @@ const EventDetails = () => {
             {/* Event Tabs */}
             <Card className="gradient-card border-0 shadow-lg relative">
               <CardContent className="p-6">
-                <Tabs defaultValue="attendees" className="w-full">
-                  <TabsList className="grid w-full grid-cols-3">
-                    <TabsTrigger value="attendees" className="flex items-center gap-2" data-tab="attendees">
+                <Tabs defaultValue="messages" className="w-full">
+                  <TabsList className="grid w-full grid-cols-1">
+                    {/* <TabsTrigger value="attendees" className="flex items-center gap-2" data-tab="attendees">
                       <Users className="h-4 w-4" />
                       Attendees
-                    </TabsTrigger>
-                    <TabsTrigger value="connections" className="flex items-center gap-2" data-tab="connections">
+                    </TabsTrigger> */}
+                    {/* <TabsTrigger value="connections" className="flex items-center gap-2" data-tab="connections">
                       <Heart className="h-4 w-4" />
                       Connections
-                    </TabsTrigger>
+                    </TabsTrigger> */}
                     <TabsTrigger value="messages" className="flex items-center gap-2" data-tab="messages">
                       <MessageCircle className="h-4 w-4" />
                       Messages
                     </TabsTrigger>
                   </TabsList>
-                  <TabsContent value="attendees" className="mt-6">
+                  {/* <TabsContent value="attendees" className="mt-6">
                     <EventAttendees eventId={event.id} />
-                  </TabsContent>
-                  <TabsContent value="connections" className="mt-6">
+                  </TabsContent> */}
+                  {/* <TabsContent value="connections" className="mt-6">
                     <EventConnections eventId={event.id} />
-                  </TabsContent>
+                  </TabsContent> */}
                   <TabsContent value="messages" className="mt-6">
                     <DirectMessages eventId={event.id} />
                   </TabsContent>

@@ -177,13 +177,7 @@ const Index = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <Button 
-                  onClick={() => navigate('/auth')} 
-                  variant="outline"
-                  className="w-full text-lg py-6 border-primary/20 hover:bg-primary/10 transition-all duration-300"
-                >
-                  Join Our Community
-                </Button>
+                
                 <Button 
                   className="w-full text-lg py-6 bg-primary hover:bg-primary/90 transition-all duration-300"
                   onClick={() => setCurrentStep('signup')} 

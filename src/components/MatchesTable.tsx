@@ -125,7 +125,7 @@ const MatchesTable = ({ eventId, onMatchResponse }: MatchesTableProps) => {
           className="flex items-center justify-between p-4 border rounded-lg bg-white/50"
         >
           <div className="flex items-center gap-4">
-            <Avatar className="h-16 w-16 ring-2 ring-white/50">
+            <Avatar className="h-12 w-12 ring-2 ring-white/50">
               <AvatarImage 
                 src={match.profile?.profile_picture_urls?.[0] || ''} 
                 alt={getDisplayName(match.profile)} 
@@ -141,12 +141,12 @@ const MatchesTable = ({ eventId, onMatchResponse }: MatchesTableProps) => {
               </h4>
               
               <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                {getAge(match.profile?.date_of_birth) && (
+                {/* {getAge(match.profile?.date_of_birth) && (
                   <div className="flex items-center gap-1">
                     <Calendar className="h-3 w-3" />
                     {getAge(match.profile?.date_of_birth)}
                   </div>
-                )}
+                )} */}
                 {getLocation(match.profile) && (
                   <div className="flex items-center gap-1">
                     <MapPin className="h-3 w-3" />
