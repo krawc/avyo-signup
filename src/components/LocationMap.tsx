@@ -178,11 +178,6 @@ const LocationMap = ({ locations, children }: LocationMapProps) => {
     if (dialogOpen && mapContainer.current) {
       initializeMap();
     }
-  
-    // Resize if re-opening dialog with existing map
-    // if (dialogOpen && map.current) {
-    //   map.current.resize();
-    // }
   }, [dialogOpen, mapContainer.current]);
 
   return (

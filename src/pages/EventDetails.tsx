@@ -295,20 +295,7 @@ const EventDetails = () => {
             <Card className="gradient-card border-0 shadow-lg relative">
               <CardContent className="p-6">
                 <Tabs defaultValue="messages" className="w-full">
-                  <TabsList className="grid w-full grid-cols-1">
-                    {/* <TabsTrigger value="attendees" className="flex items-center gap-2" data-tab="attendees">
-                      <Users className="h-4 w-4" />
-                      Attendees
-                    </TabsTrigger> */}
-                    {/* <TabsTrigger value="connections" className="flex items-center gap-2" data-tab="connections">
-                      <Heart className="h-4 w-4" />
-                      Connections
-                    </TabsTrigger> */}
-                    <TabsTrigger value="messages" className="flex items-center gap-2" data-tab="messages">
-                      <MessageCircle className="h-4 w-4" />
-                      Messages
-                    </TabsTrigger>
-                  </TabsList>
+
                   {/* <TabsContent value="attendees" className="mt-6">
                     <EventAttendees eventId={event.id} />
                   </TabsContent> */}
