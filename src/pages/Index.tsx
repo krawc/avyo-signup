@@ -98,12 +98,12 @@ const Index = () => {
                 AVYO In-Gathering
               </h1>
             </div>
-            <p className="text-xl md:text-2xl text-muted-foreground mb-8 leading-relaxed">
-              Connecting single people within the same event through faith and shared values
-            </p>
+            {/* <p className="text-xl md:text-2xl text-muted-foreground mb-8 leading-relaxed">
+              AVYO In-Gathering App is designed to connect singles gathered in a specific event, allowing them to interact and match other singles of the same faith and values on the platform.
+            </p> */}
             <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-8 mb-8 border border-blue-100">
               <p className="text-lg text-gray-700 font-medium">
-                "AVYO In-Gathering App is designed to connect singles gathered in a specific event, allowing them to interact and match other singles of the same faith and values on the platform."
+                AVYO In-Gathering App is designed to connect singles gathered in a specific event, allowing them to interact and match other singles of the same faith and values on the platform.
               </p>
             </div>
             <Button 
@@ -163,7 +163,7 @@ const Index = () => {
       </section>
 
       {/* Testimonials Section */}
-      <section className="py-16">
+      {/* <section className="py-16">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
@@ -224,7 +224,7 @@ const Index = () => {
             </Card>
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* Enhanced CTA Section */}
       <section className="py-16 bg-gradient-to-r from-blue-50 via-purple-50 to-pink-50">
@@ -232,19 +232,18 @@ const Index = () => {
           <div className="max-w-3xl mx-auto">
             <Church className="w-16 h-16 text-blue-600 mx-auto mb-6" />
             <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-6">
-              Ready to Connect Through Faith?
+              Ready to join?
             </h2>
             <p className="text-xl text-muted-foreground mb-8 leading-relaxed">
-              Join thousands of believers who are building meaningful relationships grounded in Christian values. 
-              Your faith community is waiting to welcome you home.
+              Create you account and begin to connect!
             </p>
             
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 shadow-lg border border-white/50 mb-8">
-              <h3 className="text-xl font-semibold mb-4 text-blue-700">Complete Your Faith Profile</h3>
+              {/* <h3 className="text-xl font-semibold mb-4 text-blue-700">Complete Your Faith Profile</h3>
               <p className="text-muted-foreground mb-6">
                 Fill out our thoughtful questionnaire to help us connect you with believers who share your values, 
                 interests, and spiritual journey.
-              </p>
+              </p> */}
               
               <Button 
                 className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-4 text-lg rounded-full shadow-lg hover:shadow-xl transition-all duration-300 mb-4"

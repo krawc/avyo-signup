@@ -19,8 +19,7 @@ const Header = () => {
       <div className="container mx-auto px-4 py-3">
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
-            <Church className="w-6 h-6 text-primary" />
-            <h1 className="text-xl  font-semibold text-foreground">AVYO In-Gathering</h1>
+            <img src="/tch_logo.png" width="50"/>
           </div>
 
           {user ? (
