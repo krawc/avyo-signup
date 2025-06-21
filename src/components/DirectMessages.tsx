@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -54,17 +53,59 @@ const DirectMessages = ({ eventId }: DirectMessagesProps) => {
   useEffect(() => {
     fetchConnections();
     
+    // Set up real-time subscription for new connections
+    const connectionsSubscription = supabase
+      .channel('connections-updates')
+      .on('postgres_changes', 
+        { 
+          event: 'INSERT', 
+          schema: 'public', 
+          table: 'connections',
+          filter: `requester_id=eq.${user?.id}`
+        },
+        () => {
+          console.log('New connection created - refreshing connections list');
+          fetchConnections();
+        }
+      )
+      .on('postgres_changes', 
+        { 
+          event: 'INSERT', 
+          schema: 'public', 
+          table: 'connections',
+          filter: `addressee_id=eq.${user?.id}`
+        },
+        () => {
+          console.log('New connection received - refreshing connections list');
+          fetchConnections();
+        }
+      )
+      .on('postgres_changes', 
+        { 
+          event: 'UPDATE', 
+          schema: 'public', 
+          table: 'connections'
+        },
+        () => {
+          console.log('Connection updated - refreshing connections list');
+          fetchConnections();
+        }
+      )
+      .subscribe();
+
     // Set up real-time subscription for new messages
-    const subscription = supabase
-      .channel('direct-messages')
+    const messagesSubscription = supabase
+      .channel('direct-messages-updates')
       .on('postgres_changes', 
         { 
           event: 'INSERT', 
           schema: 'public', 
           table: 'direct_messages'
         },
-        () => {
-          if (selectedConnection) {
+        (payload) => {
+          console.log('New message received:', payload);
+          // Only update if it's for the currently selected connection
+          if (selectedConnection && payload.new.connection_id === selectedConnection) {
             fetchMessages(selectedConnection);
           }
         }
@@ -72,9 +113,10 @@ const DirectMessages = ({ eventId }: DirectMessagesProps) => {
       .subscribe();
 
     return () => {
-      subscription.unsubscribe();
+      connectionsSubscription.unsubscribe();
+      messagesSubscription.unsubscribe();
     };
-  }, [eventId]);
+  }, [eventId, user?.id, selectedConnection]);
 
   useEffect(() => {
     if (selectedConnection) {
@@ -88,6 +130,8 @@ const DirectMessages = ({ eventId }: DirectMessagesProps) => {
 
   const fetchConnections = async () => {
     if (!user) return;
+
+    console.log('Fetching connections for user:', user.id);
 
     const { data, error } = await supabase
       .from('connections')
@@ -115,6 +159,8 @@ const DirectMessages = ({ eventId }: DirectMessagesProps) => {
     if (error) {
       console.error('Error fetching connections:', error);
     } else {
+      console.log('Fetched connections:', data?.length || 0);
+      
       // Sign profile picture URLs
       const connectionsWithSignedUrls = await Promise.all(
         (data || []).map(async (connection) => {
@@ -141,14 +187,23 @@ const DirectMessages = ({ eventId }: DirectMessagesProps) => {
       );
 
       setConnections(connectionsWithSignedUrls);
+      
+      // Auto-select first connection if none selected and connections exist
       if (connectionsWithSignedUrls.length > 0 && !selectedConnection) {
         setSelectedConnection(connectionsWithSignedUrls[0].id);
+      }
+      
+      // If currently selected connection no longer exists, reset selection
+      if (selectedConnection && !connectionsWithSignedUrls.find(c => c.id === selectedConnection)) {
+        setSelectedConnection(connectionsWithSignedUrls.length > 0 ? connectionsWithSignedUrls[0].id : null);
       }
     }
     setLoading(false);
   };
 
   const fetchMessages = async (connectionId: string) => {
+    console.log('Fetching messages for connection:', connectionId);
+    
     const { data, error } = await supabase
       .from('direct_messages')
       .select('*')
@@ -158,12 +213,15 @@ const DirectMessages = ({ eventId }: DirectMessagesProps) => {
     if (error) {
       console.error('Error fetching messages:', error);
     } else {
+      console.log('Fetched messages:', data?.length || 0);
       setMessages(data || []);
     }
   };
 
   const sendMessage = async () => {
     if (!newMessage.trim() || !user || !selectedConnection) return;
+
+    console.log('Sending message to connection:', selectedConnection);
 
     const { error } = await supabase
       .from('direct_messages')
@@ -177,6 +235,7 @@ const DirectMessages = ({ eventId }: DirectMessagesProps) => {
       console.error('Error sending message:', error);
     } else {
       setNewMessage('');
+      // Message will be updated via real-time subscription
     }
   };
 

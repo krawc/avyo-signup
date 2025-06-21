@@ -1,22 +1,10 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { 
-  Carousel, 
-  CarouselContent, 
-  CarouselItem, 
-  CarouselNext, 
-  CarouselPrevious 
-} from '@/components/ui/carousel';
-import { User, Heart, X, MapPin, Calendar, ChevronDown, ChevronUp } from 'lucide-react';
-import { getSignedUrls } from '@/lib/utils';
-import MatchOverlay from './MatchOverlay';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Heart, Users } from 'lucide-react';
 import MatchesTable from './MatchesTable';
+import MatchOverlay from './MatchOverlay';
 
 interface Match {
   user_id: string;
@@ -24,9 +12,6 @@ interface Match {
     first_name: string | null;
     last_name: string | null;
     display_name: string | null;
-    city: string | null;
-    state: string | null;
-    date_of_birth: string | null;
     profile_picture_urls: string[] | null;
   };
   compatibility_score: number;
@@ -40,8 +25,10 @@ const EventMatches = ({ eventId }: EventMatchesProps) => {
   const { user } = useAuth();
   const [topMatches, setTopMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showAllMatches, setShowAllMatches] = useState(false);
-  const [matchOverlay, setMatchOverlay] = useState<Match | null>(null);
+  const [matchOverlay, setMatchOverlay] = useState<{
+    show: boolean;
+    match: Match | null;
+  }>({ show: false, match: null });
 
   useEffect(() => {
     if (user) {
@@ -73,7 +60,7 @@ const EventMatches = ({ eventId }: EventMatchesProps) => {
 
       // Sign profile picture URLs
       const matchesWithSignedUrls = await Promise.all(
-        data.map(async (match: Match) => {
+        (data || []).map(async (match: Match) => {
           const rawUrls: string[] = match.profile?.profile_picture_urls || [];
           const signedUrls = await getSignedUrls(rawUrls);
           
@@ -100,208 +87,135 @@ const EventMatches = ({ eventId }: EventMatchesProps) => {
     if (!user) return;
 
     try {
+      console.log('Handling match response:', response, 'for user:', targetUserId);
+      
       const { data, error } = await supabase.functions.invoke('handle-match-response', {
         body: { eventId, targetUserId, response }
       });
 
       if (error) throw error;
 
-      // Remove the match from the current list
-      setTopMatches(prev => prev.filter(match => match.user_id !== targetUserId));
-
-      // Show match overlay if it's a mutual match
+      // Check if it's a mutual match
       if (data.isMutualMatch && response === 'yes') {
-        const matchedUser = topMatches.find(match => match.user_id === targetUserId);
-        if (matchedUser) {
-          setMatchOverlay(matchedUser);
+        const match = topMatches.find(m => m.user_id === targetUserId);
+        if (match) {
+          console.log('Mutual match found! Showing overlay');
+          setMatchOverlay({ show: true, match });
         }
       }
 
+      // Remove the match from top matches (it will be handled by MatchesTable)
+      setTopMatches(prev => prev.filter(match => match.user_id !== targetUserId));
     } catch (error) {
       console.error('Error handling match response:', error);
     }
   };
 
+  const closeMatchOverlay = () => {
+    setMatchOverlay({ show: false, match: null });
+  };
+
   const handleGoToDM = () => {
-    setMatchOverlay(null);
-    // Navigate to messages tab - this could be enhanced to navigate directly to the specific conversation
-    const messagesTab = document.querySelector('[data-tab="messages"]') as HTMLElement;
-    if (messagesTab) {
-      messagesTab.click();
-    }
-  };
-
-  const getDisplayName = (profile: Match['profile']) => {
-    if (!profile) return 'Anonymous User';
-    
-    if (profile.display_name) return profile.display_name;
-    if (profile.first_name && profile.last_name) {
-      return `${profile.first_name} ${profile.last_name}`;
-    }
-    return profile.first_name || 'Anonymous User';
-  };
-
-  const getAge = (dateOfBirth: string | null) => {
-    if (!dateOfBirth) return null;
-    const today = new Date();
-    const birthDate = new Date(dateOfBirth);
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-      age--;
-    }
-    return age;
-  };
-
-  const getLocation = (profile: Match['profile']) => {
-    if (!profile || !profile.city || !profile.state) return null;
-    return `${profile.city}, ${profile.state}`;
+    closeMatchOverlay();
+    // The DirectMessages component will automatically update via real-time subscription
+    // when the new connection is created
   };
 
   if (loading) {
     return (
-      <div className="text-center py-4">
-        <div className="animate-pulse">Loading your matches...</div>
-      </div>
+      <Card className="gradient-card border-0 shadow-lg">
+        <CardContent className="p-6 text-center">
+          <div className="animate-pulse">Loading matches...</div>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
     <>
-      <Card className="gradient-card border-0 shadow-lg">
-        <CardContent className="p-6">
-          <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
-            <Heart className="h-5 w-5 text-pink-500" />
-            Top 5 Matches
-          </h3>
-          
-          {topMatches.length === 0 ? (
-            <div className="text-center py-8">
-              <Heart className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-lg font-semibold mb-2">No matches yet</h3>
-              <p className="text-muted-foreground">Check back later as more people join the event!</p>
-            </div>
-          ) : (
-            <Carousel 
-              className="w-full" 
-              opts={{
-                align: "start",
-                loop: true,
-              }}
-            >
-              <CarouselContent>
-                {topMatches.map((match) => (
-                  <CarouselItem key={match.user_id} className="basis-full">
-                    <Card className="border">
-                      <CardContent className="p-6">
-                        <div className="text-center space-y-4">
-                          <Avatar className="h-24 w-24 mx-auto ring-2 ring-white/50">
-                            <AvatarImage 
-                              src={match.profile?.profile_picture_urls?.[0] || ''} 
-                              alt={getDisplayName(match.profile)} 
-                            />
-                            <AvatarFallback className="bg-gradient-to-br from-pink-100 to-purple-100">
-                              <User className="h-10 w-10" />
-                            </AvatarFallback>
-                          </Avatar>
-                          
-                          <div>
-                            <h4 className="font-semibold text-xl">
-                              {getDisplayName(match.profile)}
-                            </h4>
-                            
-                            <div className="flex items-center justify-center gap-3 text-sm text-muted-foreground mt-2">
-                              {getAge(match.profile?.date_of_birth) && (
-                                <div className="flex items-center gap-1">
-                                  <Calendar className="h-4 w-4" />
-                                  {getAge(match.profile?.date_of_birth)}
-                                </div>
-                              )}
-                              {getLocation(match.profile) && (
-                                <div className="flex items-center gap-1">
-                                  <MapPin className="h-4 w-4" />
-                                  {getLocation(match.profile)}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-
-                          <Badge variant="secondary" className="bg-gradient-to-r from-pink-100 to-purple-100">
-                            {match.compatibility_score}% match
-                          </Badge>
-
-                          <div className="flex gap-3 pt-2">
-                            <Button 
-                              variant="outline" 
-                              size="default" 
-                              className="flex-1 border-red-200 hover:bg-red-50"
-                              onClick={() => handleMatchResponse(match.user_id, 'no')}
-                            >
-                              <X className="h-4 w-4 mr-2" />
-                              Pass
-                            </Button>
-                            <Button 
-                              size="default" 
-                              className="flex-1 bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700"
-                              onClick={() => handleMatchResponse(match.user_id, 'yes')}
-                            >
-                              <Heart className="h-4 w-4 mr-2" />
-                              Like
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </CarouselItem>
-                ))}
-              </CarouselContent>
-              <CarouselPrevious />
-              <CarouselNext />
-            </Carousel>
-          )}
-
-          <div className="mt-6">
-            <Button 
-              variant="ghost" 
-              onClick={() => setShowAllMatches(!showAllMatches)}
-              className="w-full flex items-center gap-2"
-            >
-              {showAllMatches ? (
-                <>
-                  <ChevronUp className="h-4 w-4" />
-                  Hide All Matches
-                </>
-              ) : (
-                <>
-                  <ChevronDown className="h-4 w-4" />
-                  View All Matches
-                </>
-              )}
-            </Button>
-
-            {showAllMatches && (
-              <div className="mt-4 border-t pt-4">
-                <h4 className="text-lg font-semibold mb-4">All Matches</h4>
-                <MatchesTable 
-                  eventId={eventId} 
-                  excludeUserIds={topMatches.map(match => match.user_id)}
-                  onMatchResponse={handleMatchResponse}
-                />
+      <div className="space-y-6">
+        {/* Top 5 Matches */}
+        <Card className="gradient-card border-0 shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Heart className="h-5 w-5 text-pink-500" />
+              Your Top Matches
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {topMatches.length === 0 ? (
+              <div className="text-center py-8">
+                <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="text-lg font-semibold mb-2">No matches yet</h3>
+                <p className="text-muted-foreground">Check back soon for potential connections!</p>
               </div>
+            ) : (
+              <MatchesTable 
+                eventId={eventId}
+                excludeUserIds={[]}
+                onMatchResponse={handleMatchResponse}
+              />
             )}
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      {matchOverlay && (
+        {/* All Other Matches */}
+        <Card className="gradient-card border-0 shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-blue-500" />
+              More Potential Matches
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <MatchesTable 
+              eventId={eventId}
+              excludeUserIds={topMatches.map(match => match.user_id)}
+              onMatchResponse={handleMatchResponse}
+            />
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Match Overlay */}
+      {matchOverlay.show && matchOverlay.match && (
         <MatchOverlay
-          match={matchOverlay}
-          onClose={() => setMatchOverlay(null)}
+          match={matchOverlay.match}
+          onClose={closeMatchOverlay}
           onGoToDM={handleGoToDM}
         />
       )}
     </>
   );
+};
+
+// Helper function to get signed URLs - keeping it here since it's used in this component
+const getSignedUrls = async (urls: string[]): Promise<string[]> => {
+  if (!urls || urls.length === 0) return [];
+  
+  try {
+    const signedUrls = await Promise.all(
+      urls.map(async (url) => {
+        if (!url) return '';
+        
+        // Extract the file path from the full URL
+        const urlParts = url.split('/');
+        const fileName = urlParts[urlParts.length - 1];
+        const bucketPath = `profile-pictures/${fileName}`;
+        
+        const { data } = await supabase.storage
+          .from('profile-pictures')
+          .createSignedUrl(bucketPath, 3600); // 1 hour expiry
+        
+        return data?.signedUrl || '';
+      })
+    );
+    
+    return signedUrls;
+  } catch (error) {
+    console.error('Error creating signed URLs:', error);
+    return urls; // Return original URLs as fallback
+  }
 };
 
 export default EventMatches;
