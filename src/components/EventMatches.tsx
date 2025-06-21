@@ -45,14 +45,26 @@ const EventMatches = ({ eventId }: EventMatchesProps) => {
 
   useEffect(() => {
     if (user) {
-      loadTopMatches();
+      generateAndLoadMatches();
     }
   }, [eventId, user]);
 
-  const loadTopMatches = async () => {
+  const generateAndLoadMatches = async () => {
     if (!user) return;
 
     try {
+      console.log('Generating matches for user:', user.id, 'in event:', eventId);
+      
+      // First generate matches for this user
+      const { error: generateError } = await supabase.functions.invoke('generate-matches', {
+        body: { eventId, userId: user.id }
+      });
+
+      if (generateError) {
+        console.error('Error generating matches:', generateError);
+      }
+
+      // Then load the top matches
       const { data, error } = await supabase.functions.invoke('get-filtered-matches', {
         body: { eventId, limit: 5 }
       });
@@ -75,9 +87,10 @@ const EventMatches = ({ eventId }: EventMatchesProps) => {
         })
       );
 
+      console.log('Loaded matches:', matchesWithSignedUrls.length);
       setTopMatches(matchesWithSignedUrls);
     } catch (error) {
-      console.error('Error loading top matches:', error);
+      console.error('Error loading matches:', error);
     } finally {
       setLoading(false);
     }

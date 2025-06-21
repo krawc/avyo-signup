@@ -76,19 +76,6 @@ const Events = () => {
     if (error) {
       console.error('Error joining event:', error);
     } else {
-      // Generate matches for the new attendee
-      try {
-        const { error: matchError } = await supabase.functions.invoke('generate-matches', {
-          body: { eventId, userId: user.id }
-        });
-
-        if (matchError) {
-          console.error('Error generating matches:', matchError);
-        }
-      } catch (matchError) {
-        console.error('Error calling generate-matches function:', matchError);
-      }
-
       fetchEvents(); // Refresh the events list
     }
   };

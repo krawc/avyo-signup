@@ -97,21 +97,6 @@ serve(async (req) => {
           updated_at: new Date().toISOString()
         }, { onConflict: 'user_id,event_id' });
 
-      // Generate matches for the user after successful payment
-      try {
-        const { error: matchError } = await supabaseService.functions.invoke('generate-matches', {
-          body: { eventId, userId }
-        });
-
-        if (matchError) {
-          console.error('Error generating matches:', matchError);
-          // Don't throw here - payment was successful, matches can be generated later
-        }
-      } catch (matchError) {
-        console.error('Error calling generate-matches function:', matchError);
-        // Don't throw here - payment was successful, matches can be generated later
-      }
-
       return new Response(JSON.stringify({ 
         success: true, 
         hasAccess: true,
