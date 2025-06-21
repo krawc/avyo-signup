@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -98,7 +99,7 @@ const EventDetails = () => {
 
     // Check if user has paid for this event
     const { data: payment, error } = await supabase
-      .from('event_payments' as any)
+      .from('event_payments')
       .select('*')
       .eq('event_id', eventId)
       .eq('user_id', user.id)
@@ -112,17 +113,15 @@ const EventDetails = () => {
     console.log('payment checked')
 
     if (payment) {
-
       console.log(payment)
 
-      const paymentData = payment as EventPayment;
       const now = new Date();
       const eventDate = event ? new Date(event.start_date) : new Date();
       const isEventEnded = now > eventDate;
       
       // Check if access has expired (for post-event payments)
-      if (paymentData.is_post_event && paymentData.access_expires_at) {
-        const expiresAt = new Date(paymentData.access_expires_at);
+      if (payment.is_post_event && payment.access_expires_at) {
+        const expiresAt = new Date(payment.access_expires_at);
         const hasValidAccess = now < expiresAt;
         setPaymentAccess({ 
           hasAccess: hasValidAccess, 
@@ -130,7 +129,7 @@ const EventDetails = () => {
         });
       } else {
         setPaymentAccess({ 
-          hasAccess: !isEventEnded || paymentData.is_post_event, 
+          hasAccess: !isEventEnded || payment.is_post_event, 
           isPostEvent: isEventEnded 
         });
       }
