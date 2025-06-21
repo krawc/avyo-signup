@@ -169,25 +169,31 @@ const EventMatches = ({ eventId }: EventMatchesProps) => {
               <p className="text-muted-foreground">Check back later as more people join the event!</p>
             </div>
           ) : (
-            <Carousel className="w-full">
+            <Carousel 
+              className="w-full" 
+              opts={{
+                align: "start",
+                loop: true,
+              }}
+            >
               <CarouselContent>
                 {topMatches.map((match) => (
-                  <CarouselItem key={match.user_id} className="md:basis-1/2 lg:basis-1/3">
+                  <CarouselItem key={match.user_id} className="basis-full">
                     <Card className="border">
-                      <CardContent className="p-4">
+                      <CardContent className="p-6">
                         <div className="text-center space-y-4">
-                          <Avatar className="h-20 w-20 mx-auto ring-2 ring-white/50">
+                          <Avatar className="h-24 w-24 mx-auto ring-2 ring-white/50">
                             <AvatarImage 
                               src={match.profile?.profile_picture_urls?.[0] || ''} 
                               alt={getDisplayName(match.profile)} 
                             />
                             <AvatarFallback className="bg-gradient-to-br from-pink-100 to-purple-100">
-                              <User className="h-8 w-8" />
+                              <User className="h-10 w-10" />
                             </AvatarFallback>
                           </Avatar>
                           
                           <div>
-                            <h4 className="font-semibold text-lg">
+                            <h4 className="font-semibold text-xl">
                               {getDisplayName(match.profile)}
                             </h4>
                             
@@ -211,21 +217,23 @@ const EventMatches = ({ eventId }: EventMatchesProps) => {
                             {match.compatibility_score}% match
                           </Badge>
 
-                          <div className="flex gap-2 pt-2">
+                          <div className="flex gap-3 pt-2">
                             <Button 
                               variant="outline" 
-                              size="sm" 
+                              size="default" 
                               className="flex-1 border-red-200 hover:bg-red-50"
                               onClick={() => handleMatchResponse(match.user_id, 'no')}
                             >
-                              <X className="h-4 w-4" />
+                              <X className="h-4 w-4 mr-2" />
+                              Pass
                             </Button>
                             <Button 
-                              size="sm" 
+                              size="default" 
                               className="flex-1 bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700"
                               onClick={() => handleMatchResponse(match.user_id, 'yes')}
                             >
-                              <Heart className="h-4 w-4" />
+                              <Heart className="h-4 w-4 mr-2" />
+                              Like
                             </Button>
                           </div>
                         </div>
@@ -263,6 +271,7 @@ const EventMatches = ({ eventId }: EventMatchesProps) => {
                 <h4 className="text-lg font-semibold mb-4">All Matches</h4>
                 <MatchesTable 
                   eventId={eventId} 
+                  excludeUserIds={topMatches.map(match => match.user_id)}
                   onMatchResponse={handleMatchResponse}
                 />
               </div>

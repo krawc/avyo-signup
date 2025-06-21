@@ -24,10 +24,11 @@ interface Match {
 
 interface MatchesTableProps {
   eventId: string;
+  excludeUserIds?: string[];
   onMatchResponse: (targetUserId: string, response: 'yes' | 'no') => void;
 }
 
-const MatchesTable = ({ eventId, onMatchResponse }: MatchesTableProps) => {
+const MatchesTable = ({ eventId, excludeUserIds = [], onMatchResponse }: MatchesTableProps) => {
   const { user } = useAuth();
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,7 +37,7 @@ const MatchesTable = ({ eventId, onMatchResponse }: MatchesTableProps) => {
     if (user) {
       loadMatches();
     }
-  }, [eventId, user]);
+  }, [eventId, user, excludeUserIds]);
 
   const loadMatches = async () => {
     if (!user) return;
@@ -48,9 +49,14 @@ const MatchesTable = ({ eventId, onMatchResponse }: MatchesTableProps) => {
 
       if (error) throw error;
 
+      // Filter out excluded users (top 5 matches)
+      const filteredData = data.filter((match: Match) => 
+        !excludeUserIds.includes(match.user_id)
+      );
+
       // Sign profile picture URLs
       const matchesWithSignedUrls = await Promise.all(
-        data.map(async (match: Match) => {
+        filteredData.map(async (match: Match) => {
           const rawUrls: string[] = match.profile?.profile_picture_urls || [];
           const signedUrls = await getSignedUrls(rawUrls);
           
@@ -70,6 +76,13 @@ const MatchesTable = ({ eventId, onMatchResponse }: MatchesTableProps) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleResponse = (targetUserId: string, response: 'yes' | 'no') => {
+    // Remove the match from the current list
+    setMatches(prev => prev.filter(match => match.user_id !== targetUserId));
+    // Call the parent handler
+    onMatchResponse(targetUserId, response);
   };
 
   const getDisplayName = (profile: Match['profile']) => {
@@ -166,14 +179,14 @@ const MatchesTable = ({ eventId, onMatchResponse }: MatchesTableProps) => {
               variant="outline" 
               size="sm" 
               className="border-red-200 hover:bg-red-50"
-              onClick={() => onMatchResponse(match.user_id, 'no')}
+              onClick={() => handleResponse(match.user_id, 'no')}
             >
               <X className="h-4 w-4" />
             </Button>
             <Button 
               size="sm" 
               className="bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700"
-              onClick={() => onMatchResponse(match.user_id, 'yes')}
+              onClick={() => handleResponse(match.user_id, 'yes')}
             >
               <Heart className="h-4 w-4" />
             </Button>
