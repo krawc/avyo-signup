@@ -109,7 +109,12 @@ const EventDetails = () => {
       console.error('Error checking payment:', error);
     }
 
+    console.log('payment checked')
+
     if (payment) {
+
+      console.log(payment)
+
       const paymentData = payment as EventPayment;
       const now = new Date();
       const eventDate = event ? new Date(event.start_date) : new Date();
@@ -216,6 +221,8 @@ const EventDetails = () => {
   }
 
   const needsPayment = !paymentAccess.hasAccess;
+
+  console.log(paymentAccess)
   //const needsPayment = false;
 
   return (
@@ -271,9 +278,8 @@ const EventDetails = () => {
                 </div>
               </div>
             </CardHeader>
-
             {/* Payment Overlay */}
-            {needsPayment && (
+            {needsPayment && !loading && (
               <PaymentOverlay 
                 eventId={event.id}
                 eventTitle={event.title}
@@ -287,7 +293,8 @@ const EventDetails = () => {
           </Card>
 
           {/* Event Content - Only show if user has paid */}
-          <div className={needsPayment ? 'blur-xl pointer-events-none overflow-hidden' : ''}>
+          <div className={needsPayment ? 'blur-md pointer-events-none overflow-hidden' : ''}>
+            
             {/* Event Matches */}
             <EventMatches eventId={event.id} />
 

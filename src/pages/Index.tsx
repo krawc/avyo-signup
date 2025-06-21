@@ -93,7 +93,6 @@ const Index = () => {
         <div className="container mx-auto px-4 py-16 text-center">
           <div className="max-w-4xl mx-auto">
             <div className="flex justify-center items-center gap-3 mb-6">
-              <Church className="w-12 h-12 text-blue-600" />
               <h1 className="text-4xl md:text-6xl font-bold text-foreground">
                 AVYO In-Gathering
               </h1>
@@ -259,7 +258,7 @@ const Index = () => {
               </div>
             </div>
             
-            <div className="flex items-center justify-center gap-8 text-sm text-muted-foreground">
+            <div className="flex items-center justify-center gap-8 text-sm text-muted-foreground flex-col sm:flex-row">
               <div className="flex items-center gap-2">
                 <UserCheck className="w-4 h-4 text-green-600" />
                 <span>Safe & Secure</span>

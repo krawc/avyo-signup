@@ -173,6 +173,7 @@ const Events = () => {
                     </div>
 
                     <div className="flex gap-3">
+                      {event.is_attending && 
                       <Button
                         onClick={() => navigate(`/events/${event.id}`)}
                         variant="outline"
@@ -180,6 +181,7 @@ const Events = () => {
                       >
                         View Details
                       </Button>
+                      }
                       {event.is_attending ? (
                         <Button
                           onClick={() => leaveEvent(event.id)}
@@ -190,7 +192,7 @@ const Events = () => {
                         </Button>
                       ) : (
                         <Button
-                          onClick={() => joinEvent(event.id)}
+                        onClick={() => navigate(`/events/${event.id}`)}
                           className="flex-1"
                         >
                           Join Event
