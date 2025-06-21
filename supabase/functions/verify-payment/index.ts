@@ -42,6 +42,18 @@ serve(async (req) => {
         throw new Error("Session user mismatch");
       }
 
+      // Get event details to set proper access expiration
+      const { data: eventData, error: eventError } = await supabaseService
+        .from('events')
+        .select('end_date, start_date')
+        .eq('id', eventId)
+        .single();
+
+      if (eventError) {
+        console.error('Error fetching event:', eventError);
+        throw new Error("Event not found");
+      }
+
       // Check if user is already an attendee
       const { data: existingAttendee } = await supabaseService
         .from('event_attendees')
@@ -60,11 +72,17 @@ serve(async (req) => {
           });
       }
 
-      // Record the payment access
-      const accessExpiresAt = isPostEvent === 'true' 
-        ? new Date(Date.now() + 90 * 24 * 60 * 60 * 1000) // 3 months
-        : null; // Regular payments don't expire
+      // Calculate access expiration
+      let accessExpiresAt;
+      if (isPostEvent === 'true') {
+        // Post-event payments: 3 months from payment date
+        accessExpiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
+      } else {
+        // Regular payments: access expires when event ends
+        accessExpiresAt = eventData.end_date ? new Date(eventData.end_date) : new Date(eventData.start_date);
+      }
 
+      // Record the payment access
       await supabaseService
         .from('event_payments')
         .upsert({
@@ -75,7 +93,7 @@ serve(async (req) => {
           currency: session.currency,
           status: 'paid',
           is_post_event: isPostEvent === 'true',
-          access_expires_at: accessExpiresAt,
+          access_expires_at: accessExpiresAt.toISOString(),
           updated_at: new Date().toISOString()
         }, { onConflict: 'user_id,event_id' });
 
