@@ -68,7 +68,7 @@ const SignupForm = ({ onComplete, onBack }: SignupFormProps) => {
 
     setIsSubmitting(true);
 
-    const redirectUrl = `${window.location.origin}/post-registration`;
+    const redirectUrl = `https://avyo-signup.netlify.app/post-registration`;
     
     const { data: signupData, error } = await supabase.auth.signUp({
       email: formData.email,
