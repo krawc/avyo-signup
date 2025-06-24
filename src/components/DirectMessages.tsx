@@ -1,137 +1,92 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { User, Send, Users } from 'lucide-react';
-import LocationShare from './LocationShare';
-import { getSignedUrls } from '@/lib/utils';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
+import { User, Send, MessageCircle } from 'lucide-react';
 
 interface Connection {
   id: string;
   requester_id: string;
   addressee_id: string;
   status: string;
-  requester_profile?: {
+  created_at: string;
+  other_user: {
+    id: string;
     first_name: string | null;
     last_name: string | null;
     display_name: string | null;
     profile_picture_urls: string[] | null;
-  } | null;
-  addressee_profile?: {
-    first_name: string | null;
-    last_name: string | null;
-    display_name: string | null;
-    profile_picture_urls: string[] | null;
-  } | null;
+  };
 }
 
-interface DirectMessage {
+interface Message {
   id: string;
-  message: string;
+  content: string;
   sender_id: string;
   created_at: string;
-  connection_id: string;
 }
 
 interface DirectMessagesProps {
   eventId: string;
+  onInteractionAttempt?: () => void;
 }
 
-const DirectMessages = ({ eventId }: DirectMessagesProps) => {
+const DirectMessages = ({ eventId, onInteractionAttempt }: DirectMessagesProps) => {
   const { user } = useAuth();
   const [connections, setConnections] = useState<Connection[]>([]);
-  const [selectedConnection, setSelectedConnection] = useState<string | null>(null);
-  const [messages, setMessages] = useState<DirectMessage[]>([]);
+  const [selectedConnection, setSelectedConnection] = useState<Connection | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchConnections();
-    
-    // Set up real-time subscription for new connections
-    const connectionsSubscription = supabase
-      .channel('connections-updates')
-      .on('postgres_changes', 
-        { 
-          event: 'INSERT', 
-          schema: 'public', 
-          table: 'connections',
-          filter: `requester_id=eq.${user?.id}`
-        },
-        () => {
-          console.log('New connection created - refreshing connections list');
-          fetchConnections();
-        }
-      )
-      .on('postgres_changes', 
-        { 
-          event: 'INSERT', 
-          schema: 'public', 
-          table: 'connections',
-          filter: `addressee_id=eq.${user?.id}`
-        },
-        () => {
-          console.log('New connection received - refreshing connections list');
-          fetchConnections();
-        }
-      )
-      .on('postgres_changes', 
-        { 
-          event: 'UPDATE', 
-          schema: 'public', 
-          table: 'connections'
-        },
-        () => {
-          console.log('Connection updated - refreshing connections list');
-          fetchConnections();
-        }
-      )
-      .subscribe();
 
-    // Set up real-time subscription for new messages
-    const messagesSubscription = supabase
-      .channel('direct-messages-updates')
-      .on('postgres_changes', 
-        { 
-          event: 'INSERT', 
-          schema: 'public', 
-          table: 'direct_messages'
-        },
+    // Subscribe to connection changes
+    const connectionSubscription = supabase
+      .channel('connections')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'connections' },
         (payload) => {
-          console.log('New message received:', payload);
-          // Only update if it's for the currently selected connection
-          if (selectedConnection && payload.new.connection_id === selectedConnection) {
-            fetchMessages(selectedConnection);
-          }
+          console.log('Connection change received!', payload);
+          fetchConnections();
         }
       )
       .subscribe();
 
-    return () => {
-      connectionsSubscription.unsubscribe();
-      messagesSubscription.unsubscribe();
-    };
-  }, [eventId, user?.id, selectedConnection]);
-
-  useEffect(() => {
+    // Subscribe to message changes
     if (selectedConnection) {
-      fetchMessages(selectedConnection);
-    }
-  }, [selectedConnection]);
+      const messageSubscription = supabase
+        .channel(`messages-${selectedConnection.id}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'messages' },
+          (payload) => {
+            console.log('Message change received!', payload);
+            fetchMessages(selectedConnection.id);
+          }
+        )
+        .subscribe();
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+      return () => {
+        connectionSubscription.unsubscribe();
+        messageSubscription.unsubscribe();
+      };
+    } else {
+      return () => {
+        connectionSubscription.unsubscribe();
+      };
+    }
+  }, [eventId, user, selectedConnection]);
 
   const fetchConnections = async () => {
     if (!user) return;
-
-    console.log('Fetching connections for user:', user.id);
 
     const { data, error } = await supabase
       .from('connections')
@@ -140,72 +95,37 @@ const DirectMessages = ({ eventId }: DirectMessagesProps) => {
         requester_id,
         addressee_id,
         status,
-        requester_profile:profiles!connections_requester_id_fkey (
-          first_name,
-          last_name,
-          display_name,
-          profile_picture_urls
-        ),
-        addressee_profile:profiles!connections_addressee_id_fkey (
+        created_at,
+        other_user: profiles (
+          id,
           first_name,
           last_name,
           display_name,
           profile_picture_urls
         )
       `)
-      .eq('status', 'accepted')
-      .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`);
+      .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`)
+      .eq('status', 'accepted');
 
     if (error) {
       console.error('Error fetching connections:', error);
     } else {
-      console.log('Fetched connections:', data?.length || 0);
-      
-      // Sign profile picture URLs
-      const connectionsWithSignedUrls = await Promise.all(
-        (data || []).map(async (connection) => {
-          const requesterUrls: string[] = connection.requester_profile?.profile_picture_urls || [];
-          const addresseeUrls: string[] = connection.addressee_profile?.profile_picture_urls || [];
-          
-          const [signedRequesterUrls, signedAddresseeUrls] = await Promise.all([
-            getSignedUrls(requesterUrls),
-            getSignedUrls(addresseeUrls)
-          ]);
-
-          return {
-            ...connection,
-            requester_profile: {
-              ...connection.requester_profile,
-              profile_picture_urls: signedRequesterUrls,
-            },
-            addressee_profile: {
-              ...connection.addressee_profile,
-              profile_picture_urls: signedAddresseeUrls,
-            }
-          };
-        })
-      );
-
-      setConnections(connectionsWithSignedUrls);
-      
-      // Auto-select first connection if none selected and connections exist
-      if (connectionsWithSignedUrls.length > 0 && !selectedConnection) {
-        setSelectedConnection(connectionsWithSignedUrls[0].id);
-      }
-      
-      // If currently selected connection no longer exists, reset selection
-      if (selectedConnection && !connectionsWithSignedUrls.find(c => c.id === selectedConnection)) {
-        setSelectedConnection(connectionsWithSignedUrls.length > 0 ? connectionsWithSignedUrls[0].id : null);
-      }
+      const formattedConnections = (data || []).map((conn: any) => {
+        const other_user =
+          conn.requester_id === user.id ? conn.other_user : conn.other_user;
+        return {
+          ...conn,
+          other_user,
+        };
+      });
+      setConnections(formattedConnections);
     }
     setLoading(false);
   };
 
   const fetchMessages = async (connectionId: string) => {
-    console.log('Fetching messages for connection:', connectionId);
-    
     const { data, error } = await supabase
-      .from('direct_messages')
+      .from('messages')
       .select('*')
       .eq('connection_id', connectionId)
       .order('created_at', { ascending: true });
@@ -213,66 +133,54 @@ const DirectMessages = ({ eventId }: DirectMessagesProps) => {
     if (error) {
       console.error('Error fetching messages:', error);
     } else {
-      console.log('Fetched messages:', data?.length || 0);
       setMessages(data || []);
     }
   };
 
   const sendMessage = async () => {
-    if (!newMessage.trim() || !user || !selectedConnection) return;
-
-    console.log('Sending message to connection:', selectedConnection);
+    if (!user || !selectedConnection) return;
 
     const { error } = await supabase
-      .from('direct_messages')
+      .from('messages')
       .insert({
-        connection_id: selectedConnection,
+        connection_id: selectedConnection.id,
         sender_id: user.id,
-        message: newMessage.trim()
+        content: newMessage,
       });
 
     if (error) {
       console.error('Error sending message:', error);
     } else {
       setNewMessage('');
-      // Message will be updated via real-time subscription
+      fetchMessages(selectedConnection.id);
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
+  const handleConnectionSelect = (connection: Connection) => {
+    if (onInteractionAttempt) {
+      onInteractionAttempt();
+      return;
     }
+    setSelectedConnection(connection);
+    fetchMessages(connection.id);
   };
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  const getConnectionInfo = (connection: Connection) => {
-    const isRequester = connection.requester_id === user?.id;
-    const otherProfile = isRequester ? connection.addressee_profile : connection.requester_profile;
-    
-    return { profile: otherProfile };
+  const handleSendMessage = async () => {
+    if (onInteractionAttempt) {
+      onInteractionAttempt();
+      return;
+    }
+    await sendMessage();
   };
 
   const getDisplayName = (profile: any) => {
     if (!profile) return 'Anonymous User';
-    
+
     if (profile.display_name) return profile.display_name;
     if (profile.first_name && profile.last_name) {
       return `${profile.first_name} ${profile.last_name}`;
     }
     return profile.first_name || 'Anonymous User';
-  };
-
-  const formatTime = (dateString: string) => {
-    return new Date(dateString).toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    });
   };
 
   if (loading) {
@@ -281,106 +189,131 @@ const DirectMessages = ({ eventId }: DirectMessagesProps) => {
 
   if (connections.length === 0) {
     return (
-      <Card className="gradient-card border-0 shadow-lg">
-        <CardContent className="p-6 text-center">
-          <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-          <h3 className="text-lg font-semibold mb-2">No connections yet</h3>
-          <p className="text-muted-foreground">Connect with other attendees to start messaging!</p>
-        </CardContent>
-      </Card>
+      <div className="text-center py-8">
+        <MessageCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+        <h3 className="text-lg font-semibold mb-2">No connections yet</h3>
+        <p className="text-muted-foreground">
+          Start making connections by matching with other attendees!
+        </p>
+      </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-semibold">Messages & Location</h3>
-      
-      <Tabs value={selectedConnection || ''} onValueChange={setSelectedConnection} className="w-full">
-        <TabsList className="grid w-full h-auto grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {connections.slice(0, 4).map((connection) => {
-            const { profile } = getConnectionInfo(connection);
-            return (
-              <TabsTrigger 
-                key={connection.id} 
-                value={connection.id}
-                className="flex items-center gap-2 text-xs"
+    <div className="grid md:grid-cols-3 gap-6 h-[600px]">
+      {/* Connections List */}
+      <div className="md:col-span-1">
+        <h3 className="text-lg font-semibold mb-4">Your Connections ({connections.length})</h3>
+        <ScrollArea className="h-[500px]">
+          <div className="space-y-2">
+            {connections.map((connection) => (
+              <Card
+                key={connection.id}
+                className={`cursor-pointer transition-colors hover:bg-muted/50 ${
+                  selectedConnection?.id === connection.id ? 'bg-muted' : ''
+                }`}
+                onClick={() => handleConnectionSelect(connection)}
               >
-                <Avatar className="h-6 w-6">
-                  <AvatarImage 
-                    src={profile?.profile_picture_urls?.[0] || ''} 
-                    alt={getDisplayName(profile)} 
-                  />
-                  <AvatarFallback className="text-xs">
-                    <User className="h-3 w-3" />
-                  </AvatarFallback>
-                </Avatar>
-                <span className="truncate max-w-16">{getDisplayName(profile)}</span>
-              </TabsTrigger>
-            );
-          })}
-        </TabsList>
-
-        {connections.map((connection) => (
-          <TabsContent key={connection.id} value={connection.id} className="mt-4">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {/* Messages */}
-              <Card className="border">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm">
-                    Chat with {getDisplayName(getConnectionInfo(connection).profile)}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="h-64 overflow-y-auto space-y-3 p-2">
-                    {messages.length === 0 ? (
-                      <div className="text-center text-muted-foreground py-8 text-sm">
-                        Start a conversation!
-                      </div>
-                    ) : (
-                      messages.map((message) => (
-                        <div 
-                          key={message.id} 
-                          className={`flex gap-2 ${message.sender_id === user?.id ? 'flex-row-reverse' : ''}`}
-                        >
-                          <div className={`flex-1 max-w-xs ${message.sender_id === user?.id ? 'text-right' : ''}`}>
-                            <div className={`inline-block p-2 rounded-lg text-sm ${
-                              message.sender_id === user?.id 
-                                ? 'bg-primary text-primary-foreground' 
-                                : 'bg-muted'
-                            }`}>
-                              <p>{message.message}</p>
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {formatTime(message.created_at)}
-                            </p>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                    <div ref={messagesEndRef} />
-                  </div>
-                  
-                  <div className="flex gap-2">
-                    <Input
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                      onKeyPress={handleKeyPress}
-                      placeholder="Type your message..."
-                      className="flex-1 text-sm"
-                    />
-                    <Button onClick={sendMessage} size="sm">
-                      <Send className="h-4 w-4" />
-                    </Button>
+                <CardContent className="p-3">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage
+                        src={connection.other_user.profile_picture_urls?.[0] || ''}
+                        alt={getDisplayName(connection.other_user)}
+                      />
+                      <AvatarFallback>
+                        <User className="h-5 w-5" />
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-medium truncate">
+                        {getDisplayName(connection.other_user)}
+                      </h4>
+                      <Badge variant="default" className="bg-green-500 text-xs">
+                        Connected
+                      </Badge>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
+            ))}
+          </div>
+        </ScrollArea>
+      </div>
 
-              {/* Location Sharing */}
-              <LocationShare connectionId={connection.id} />
+      {/* Messages */}
+      <div className="md:col-span-2">
+        {selectedConnection ? (
+          <Card className="h-full">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-3">
+                <Avatar className="h-8 w-8">
+                  <AvatarImage
+                    src={selectedConnection.other_user.profile_picture_urls?.[0] || ''}
+                    alt={getDisplayName(selectedConnection.other_user)}
+                  />
+                  <AvatarFallback>
+                    <User className="h-4 w-4" />
+                  </AvatarFallback>
+                </Avatar>
+                {getDisplayName(selectedConnection.other_user)}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0 flex flex-col h-[500px]">
+              {/* Messages */}
+              <ScrollArea className="flex-1 p-4">
+                <div className="space-y-4">
+                  {messages.map((message) => (
+                    <div
+                      key={message.id}
+                      className={`flex ${message.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div
+                        className={`max-w-[70%] p-3 rounded-lg ${
+                          message.sender_id === user?.id
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-muted'
+                        }`}
+                      >
+                        <p className="text-sm">{message.content}</p>
+                        <p className="text-xs opacity-70 mt-1">
+                          {new Date(message.created_at).toLocaleTimeString()}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+
+              {/* Message Input */}
+              <div className="p-4 border-t">
+                <div className="flex gap-2">
+                  <Input
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    placeholder="Type your message..."
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        handleSendMessage();
+                      }
+                    }}
+                  />
+                  <Button onClick={handleSendMessage} disabled={!newMessage.trim()}>
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center">
+              <MessageCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <p className="text-muted-foreground">Select a connection to start messaging</p>
             </div>
-          </TabsContent>
-        ))}
-      </Tabs>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

@@ -1,16 +1,13 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { Calendar, MapPin, Church, Heart, Users, User, ScanQrCode, Edit } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { User, Edit, Calendar, MapPin, Church, Heart, Users, Baby } from 'lucide-react';
 import Header from '@/components/Header';
 import ProfileEditor from '@/components/ProfileEditor';
-import { getSignedUrls } from '@/lib/utils';
 
 interface Profile {
   id: string;
@@ -20,137 +17,78 @@ interface Profile {
   date_of_birth: string | null;
   age_range: string | null;
   gender: string | null;
-  phone_number: string | null;
   city: string | null;
   state: string | null;
   church_name: string | null;
-  marital_status: string | null;
-  has_kids: string | null;
+  denomination: string | null;
   life_verse: string | null;
-  profile_picture_urls: string[] | null;
-}
-
-interface Event {
-  id: string;
-  title: string;
-  description: string | null;
-  location: string | null;
-  start_date: string;
-  end_date: string | null;
+  has_kids: string | null;
+  profile_picture_urls: string[];
+  created_at: string;
+  updated_at: string;
 }
 
 const Profile = () => {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [myEvents, setMyEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
-    if (!user) {
-      return;
+    if (user) {
+      fetchProfile();
     }
-
-    fetchProfile();
-    fetchMyEvents();
-    handlePendingEvent();
-  }, [user, navigate]);
-
-  const handlePendingEvent = async () => {
-    const pendingEventId = localStorage.getItem('pendingEventId');
-    if (pendingEventId && user) {
-      try {
-        // Join the event
-        const { error } = await supabase
-          .from('event_attendees')
-          .insert({ event_id: pendingEventId, user_id: user.id });
-
-        if (!error) {
-          // Clear the pending event
-          localStorage.removeItem('pendingEventId');
-          // Refresh events list
-          fetchMyEvents();
-        }
-      } catch (error) {
-        console.error('Error joining pending event:', error);
-      }
-    }
-  };
+  }, [user]);
 
   const fetchProfile = async () => {
     if (!user) return;
-  
+
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', user.id)
       .single();
-  
+
     if (error) {
       console.error('Error fetching profile:', error);
-      return;
-    }
-  
-    // If there are image URLs, generate signed versions
-    if (data.profile_picture_urls && data.profile_picture_urls.length > 0) {
-      const signedUrls = await getSignedUrls(data.profile_picture_urls);
-      setProfile({
+    } else {
+      // Ensure all required fields are present, including age_range
+      const profileWithDefaults = {
         ...data,
-        profile_picture_urls: signedUrls,
-      });
-    } else {
-      setProfile(data);
-    }
-  };
-
-  const fetchMyEvents = async () => {
-    if (!user) return;
-
-    const { data, error } = await supabase
-      .from('event_attendees')
-      .select(`
-        event_id,
-        events (
-          id,
-          title,
-          description,
-          location,
-          start_date,
-          end_date
-        )
-      `)
-      .eq('user_id', user.id);
-
-    if (error) {
-      console.error('Error fetching events:', error);
-    } else {
-      const events = data?.map(item => item.events).filter(Boolean) as Event[];
-      setMyEvents(events || []);
+        profile_picture_urls: data.profile_picture_urls || [],
+        age_range: data.age_range || null
+      };
+      setProfile(profileWithDefaults);
     }
     setLoading(false);
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      weekday: 'short',
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  };
-
-  const getDisplayName = () => {
-    if (profile?.display_name) return profile.display_name;
-    if (profile?.first_name && profile?.last_name) {
-      return `${profile.first_name} ${profile.last_name}`;
-    }
-    return profile?.first_name || 'Anonymous User';
   };
 
   const handleProfileUpdate = (updatedProfile: Profile) => {
     setProfile(updatedProfile);
     setIsEditing(false);
+  };
+
+  const formatDate = (dateString: string | null): string => {
+    if (!dateString) return 'Not specified';
+    try {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return 'Invalid date';
+    }
+  };
+
+  const getDisplayName = () => {
+    if (!profile) return 'Anonymous User';
+    if (profile.display_name) return profile.display_name;
+    if (profile.first_name && profile.last_name) {
+      return `${profile.first_name} ${profile.last_name}`;
+    }
+    return profile.first_name || 'Anonymous User';
   };
 
   if (loading) {
@@ -164,160 +102,123 @@ const Profile = () => {
     );
   }
 
+  if (!profile) {
+    return (
+      <div className="min-h-screen gradient-bg">
+        <Header />
+        <div className="container mx-auto px-4 py-8">
+          <div className="text-center">Profile not found.</div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen gradient-bg">
       <Header />
       <div className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto space-y-6">
-          {/* Profile Header */}
-          {isEditing && profile ? (
+        <div className="max-w-4xl mx-auto">
+          {isEditing ? (
             <ProfileEditor
               profile={profile}
-              onUpdate={handleProfileUpdate}
+              onSave={handleProfileUpdate}
               onCancel={() => setIsEditing(false)}
             />
           ) : (
             <Card className="gradient-card border-0 shadow-lg">
               <CardHeader>
-                <div className="flex items-start gap-6">
-                  <Avatar className="h-24 w-24">
-                    <AvatarImage 
-                      src={profile?.profile_picture_urls?.[0] || ''} 
-                      alt={getDisplayName()} 
-                    />
-                    <AvatarFallback className="text-2xl">
-                      <User className="h-12 w-12" />
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <CardTitle className="text-3xl">{getDisplayName()}</CardTitle>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setIsEditing(true)}
-                        className="ml-auto"
-                      >
-                        <Edit className="h-4 w-4 mr-2" />
-                        Edit Profile
-                      </Button>
-                    </div>
-                    <CardDescription className="text-lg mt-2">
-                      {profile?.city && profile?.state && (
-                        <div className="flex items-center gap-1">
-                          <MapPin className="h-4 w-4" />
-                          {profile.city}, {profile.state}
-                        </div>
-                      )}
-                    </CardDescription>
-                  </div>
+                <div className="flex justify-between items-center">
+                  <CardTitle className="text-2xl font-semibold">{getDisplayName()}</CardTitle>
+                  <Button variant="ghost" size="sm" onClick={() => setIsEditing(true)}>
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit Profile
+                  </Button>
                 </div>
               </CardHeader>
-              <CardContent>
-                <div className="grid md:grid-cols-2 gap-4">
-                  {profile?.marital_status && (
-                    <div className="flex items-center gap-2">
-                      <Heart className="h-4 w-4 text-primary" />
-                      <span>Status: {profile.marital_status}</span>
+              <CardContent className="space-y-4">
+                <div className="flex items-center gap-6">
+                  <Avatar className="h-24 w-24">
+                    <AvatarImage src={profile.profile_picture_urls?.[0] || ''} alt={getDisplayName()} />
+                    <AvatarFallback>
+                      <User className="h-8 w-8" />
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="space-y-1">
+                    <div className="text-lg font-medium">{getDisplayName()}</div>
+                    <div className="text-sm text-muted-foreground">
+                      Member since {new Date(profile.created_at).toLocaleDateString()}
                     </div>
-                  )}
-                  {profile?.has_kids && (
-                    <div className="flex items-center gap-2">
-                      <Users className="h-4 w-4 text-primary" />
-                      <span>Children: {profile.has_kids}</span>
-                    </div>
-                  )}
-                  {profile?.church_name && (
-                    <div className="flex items-center gap-2">
-                      <Church className="h-4 w-4 text-primary" />
-                      <span>{profile.church_name}</span>
-                    </div>
-                  )}
-                  {profile?.age_range && (
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-primary" />
-                      <span>Age: {profile.age_range}</span>
-                    </div>
-                  )}
-                </div>
-                {profile?.life_verse && (
-                  <div className="mt-4 p-4 bg-primary/10 rounded-lg">
-                    <p className="text-sm text-primary font-medium italic">
-                      "{profile.life_verse}"
-                    </p>
                   </div>
-                )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <div className="text-sm font-bold mb-1">Personal Information</div>
+                    <div className="text-muted-foreground">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4" />
+                        <span>Date of Birth: {formatDate(profile.date_of_birth)}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Baby className="h-4 w-4" />
+                        <span>Age Range: {profile.age_range || 'Not specified'}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <User className="h-4 w-4" />
+                        <span>Gender: {profile.gender || 'Not specified'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-sm font-bold mb-1">Location</div>
+                    <div className="text-muted-foreground">
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4" />
+                        <span>
+                          {profile.city ? `${profile.city}, ${profile.state}` : 'Location not specified'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-sm font-bold mb-1">Faith Details</div>
+                    <div className="text-muted-foreground">
+                      <div className="flex items-center gap-2">
+                        <Church className="h-4 w-4" />
+                        <span>Church: {profile.church_name || 'Not specified'}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Heart className="h-4 w-4" />
+                        <span>Denomination: {profile.denomination || 'Not specified'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-sm font-bold mb-1">Life Verse</div>
+                    <div className="text-muted-foreground">
+                      <div className="flex items-center gap-2">
+                        <Quote className="h-4 w-4" />
+                        <span>{profile.life_verse || 'Not specified'}</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <div className="text-sm font-bold mb-1">Has Kids</div>
+                    <div className="text-muted-foreground">
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4" />
+                        <span>{profile.has_kids || 'Not specified'}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           )}
-
-          {/* My Events Section */}
-          <Card className="gradient-card border-0 shadow-lg">
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <div>
-                  <CardTitle className="text-2xl flex items-center gap-2">
-                    <Calendar className="h-6 w-6 text-primary" />
-                    My Events
-                  </CardTitle>
-                  <CardDescription>
-                    Events you're attending or have attended
-                  </CardDescription>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => navigate('/qr-scanner')}
-                  className="flex items-center gap-2"
-                >
-                  <ScanQrCode className="h-4 w-4" />
-                  QR Scanner
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {myEvents.length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground mb-4">You haven't joined any events yet.</p>
-                  <Button onClick={() => navigate('/events')}>
-                    Browse Events
-                  </Button>
-                </div>
-              ) : (
-                <div className="grid gap-4">
-                  {myEvents.map((event) => (
-                    <div 
-                      key={event.id}
-                      className="border rounded-lg p-4 hover:bg-accent/50 cursor-pointer transition-colors"
-                      onClick={() => navigate(`/events/${event.id}`)}
-                    >
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h3 className="font-semibold text-lg">{event.title}</h3>
-                          {event.description && (
-                            <p className="text-muted-foreground mt-1">{event.description}</p>
-                          )}
-                          <div className="flex sm-items-center gap-4 my-4 text-sm text-muted-foreground flex-col sm-flex-row">
-                            <div className="flex items-center gap-1">
-                              <Calendar className="h-4 w-4" />
-                              {formatDate(event.start_date)}
-                            </div>
-                            {event.location && (
-                              <div className="flex items-center gap-1">
-                                <MapPin className="h-4 w-4" />
-                                {event.location}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        <Badge variant="secondary">Attending</Badge>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
         </div>
       </div>
     </div>

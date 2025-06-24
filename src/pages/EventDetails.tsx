@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -30,20 +29,6 @@ interface PaymentAccess {
   isPostEvent: boolean;
 }
 
-interface EventPayment {
-  id: string;
-  user_id: string;
-  event_id: string;
-  stripe_session_id: string;
-  amount: number;
-  currency: string;
-  status: string;
-  is_post_event: boolean;
-  access_expires_at: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
 const EventDetails = () => {
   const { eventId } = useParams<{ eventId: string }>();
   const { user } = useAuth();
@@ -54,6 +39,7 @@ const EventDetails = () => {
   const [paymentAccess, setPaymentAccess] = useState<PaymentAccess>({ hasAccess: false, isPostEvent: false });
   const [loading, setLoading] = useState(true);
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
+  const [showPaymentOverlay, setShowPaymentOverlay] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -223,9 +209,13 @@ const EventDetails = () => {
   }
 
   const needsPayment = !paymentAccess.hasAccess;
+  const shouldShowPaymentOverlay = showPaymentOverlay || (!isAttending && needsPayment);
 
-  console.log(paymentAccess)
-  //const needsPayment = false;
+  const handleInteractionAttempt = () => {
+    if (needsPayment) {
+      setShowPaymentOverlay(true);
+    }
+  };
 
   return (
     <div className="min-h-screen gradient-bg">
@@ -277,11 +267,17 @@ const EventDetails = () => {
                       {paymentAccess.isPostEvent ? 'Post-Event Access' : 'Event Access'}
                     </Badge>
                   )}
+                  {isAttending && !paymentAccess.hasAccess && (
+                    <Badge variant="secondary">
+                      Attending
+                    </Badge>
+                  )}
                 </div>
               </div>
             </CardHeader>
-            {/* Payment Overlay */}
-            {needsPayment && !loading && (
+
+            {/* Payment Overlay - only show if not attending or forced to show */}
+            {shouldShowPaymentOverlay && (
               <PaymentOverlay 
                 eventId={event.id}
                 eventTitle={event.title}
@@ -289,30 +285,30 @@ const EventDetails = () => {
                 onPaymentSuccess={() => {
                   setPaymentAccess({ hasAccess: true, isPostEvent: paymentAccess.isPostEvent });
                   setIsAttending(true);
+                  setShowPaymentOverlay(false);
                 }}
               />
             )}
           </Card>
 
-          {/* Event Content - Only show if user has paid */}
-          <div className={needsPayment ? 'blur-md pointer-events-none overflow-hidden' : ''}>
+          {/* Event Content - Show if attending, blur if payment needed and interaction attempted */}
+          <div className={showPaymentOverlay ? 'blur-md pointer-events-none overflow-hidden' : ''}>
             
             {/* Event Matches */}
-            <EventMatches eventId={event.id} />
+            <EventMatches 
+              eventId={event.id} 
+              onInteractionAttempt={needsPayment ? handleInteractionAttempt : undefined}
+            />
 
             {/* Event Tabs */}
             <Card className="gradient-card border-0 shadow-lg relative">
               <CardContent className="p-6">
                 <Tabs defaultValue="messages" className="w-full">
-
-                  {/* <TabsContent value="attendees" className="mt-6">
-                    <EventAttendees eventId={event.id} />
-                  </TabsContent> */}
-                  {/* <TabsContent value="connections" className="mt-6">
-                    <EventConnections eventId={event.id} />
-                  </TabsContent> */}
                   <TabsContent value="messages" className="mt-6">
-                    <DirectMessages eventId={event.id} />
+                    <DirectMessages 
+                      eventId={event.id} 
+                      onInteractionAttempt={needsPayment ? handleInteractionAttempt : undefined}
+                    />
                   </TabsContent>
                 </Tabs>
               </CardContent>

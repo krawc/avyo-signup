@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -19,9 +20,10 @@ interface Match {
 
 interface EventMatchesProps {
   eventId: string;
+  onInteractionAttempt?: () => void;
 }
 
-const EventMatches = ({ eventId }: EventMatchesProps) => {
+const EventMatches = ({ eventId, onInteractionAttempt }: EventMatchesProps) => {
   const { user } = useAuth();
   const [topMatches, setTopMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
@@ -84,6 +86,11 @@ const EventMatches = ({ eventId }: EventMatchesProps) => {
   };
 
   const handleMatchResponse = async (targetUserId: string, response: 'yes' | 'no') => {
+    if (onInteractionAttempt) {
+      onInteractionAttempt();
+      return;
+    }
+
     if (!user) return;
 
     try {
