@@ -6,16 +6,21 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, MapPin, Church, Heart, Users, User, ScanQrCode } from 'lucide-react';
+import { Calendar, MapPin, Church, Heart, Users, User, ScanQrCode, Edit } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Header from '@/components/Header';
-import { getSignedUrls } from '@/lib/utils'
+import ProfileEditor from '@/components/ProfileEditor';
+import { getSignedUrls } from '@/lib/utils';
 
 interface Profile {
   id: string;
   first_name: string | null;
   last_name: string | null;
   display_name: string | null;
+  date_of_birth: string | null;
+  age_range: string | null;
+  gender: string | null;
+  phone_number: string | null;
   city: string | null;
   state: string | null;
   church_name: string | null;
@@ -40,16 +45,38 @@ const Profile = () => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [myEvents, setMyEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
     if (!user) {
-      //navigate('/auth');
       return;
     }
 
     fetchProfile();
     fetchMyEvents();
+    handlePendingEvent();
   }, [user, navigate]);
+
+  const handlePendingEvent = async () => {
+    const pendingEventId = localStorage.getItem('pendingEventId');
+    if (pendingEventId && user) {
+      try {
+        // Join the event
+        const { error } = await supabase
+          .from('event_attendees')
+          .insert({ event_id: pendingEventId, user_id: user.id });
+
+        if (!error) {
+          // Clear the pending event
+          localStorage.removeItem('pendingEventId');
+          // Refresh events list
+          fetchMyEvents();
+        }
+      } catch (error) {
+        console.error('Error joining pending event:', error);
+      }
+    }
+  };
 
   const fetchProfile = async () => {
     if (!user) return;
@@ -76,7 +103,6 @@ const Profile = () => {
       setProfile(data);
     }
   };
-  
 
   const fetchMyEvents = async () => {
     if (!user) return;
@@ -122,6 +148,11 @@ const Profile = () => {
     return profile?.first_name || 'Anonymous User';
   };
 
+  const handleProfileUpdate = (updatedProfile: Profile) => {
+    setProfile(updatedProfile);
+    setIsEditing(false);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen gradient-bg">
@@ -133,69 +164,92 @@ const Profile = () => {
     );
   }
 
-  console.log(profile)
-
   return (
     <div className="min-h-screen gradient-bg">
       <Header />
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto space-y-6">
           {/* Profile Header */}
-          <Card className="gradient-card border-0 shadow-lg">
-            <CardHeader>
-              <div className="flex items-start gap-6">
-                <Avatar className="h-24 w-24">
-                  <AvatarImage 
-                    src={profile?.profile_picture_urls?.[0] || ''} 
-                    alt={getDisplayName()} 
-                  />
-                  <AvatarFallback className="text-2xl">
-                    <User className="h-12 w-12" />
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                  <CardTitle className="text-3xl">{getDisplayName()}</CardTitle>
-                  <CardDescription className="text-lg mt-2">
-                    {profile?.city && profile?.state && (
-                      <div className="flex items-center gap-1">
-                        <MapPin className="h-4 w-4" />
-                        {profile.city}, {profile.state}
-                      </div>
-                    )}
-                  </CardDescription>
+          {isEditing && profile ? (
+            <ProfileEditor
+              profile={profile}
+              onUpdate={handleProfileUpdate}
+              onCancel={() => setIsEditing(false)}
+            />
+          ) : (
+            <Card className="gradient-card border-0 shadow-lg">
+              <CardHeader>
+                <div className="flex items-start gap-6">
+                  <Avatar className="h-24 w-24">
+                    <AvatarImage 
+                      src={profile?.profile_picture_urls?.[0] || ''} 
+                      alt={getDisplayName()} 
+                    />
+                    <AvatarFallback className="text-2xl">
+                      <User className="h-12 w-12" />
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <CardTitle className="text-3xl">{getDisplayName()}</CardTitle>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsEditing(true)}
+                        className="ml-auto"
+                      >
+                        <Edit className="h-4 w-4 mr-2" />
+                        Edit Profile
+                      </Button>
+                    </div>
+                    <CardDescription className="text-lg mt-2">
+                      {profile?.city && profile?.state && (
+                        <div className="flex items-center gap-1">
+                          <MapPin className="h-4 w-4" />
+                          {profile.city}, {profile.state}
+                        </div>
+                      )}
+                    </CardDescription>
+                  </div>
                 </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid md:grid-cols-2 gap-4">
-                {profile?.marital_status && (
-                  <div className="flex items-center gap-2">
-                    <Heart className="h-4 w-4 text-primary" />
-                    <span>Status: {profile.marital_status}</span>
-                  </div>
-                )}
-                {profile?.has_kids && (
-                  <div className="flex items-center gap-2">
-                    <Users className="h-4 w-4 text-primary" />
-                    <span>Children: {profile.has_kids}</span>
-                  </div>
-                )}
-                {profile?.church_name && (
-                  <div className="flex items-center gap-2">
-                    <Church className="h-4 w-4 text-primary" />
-                    <span>{profile.church_name}</span>
-                  </div>
-                )}
-              </div>
-              {profile?.life_verse && (
-                <div className="mt-4 p-4 bg-primary/10 rounded-lg">
-                  <p className="text-sm text-primary font-medium italic">
-                    "{profile.life_verse}"
-                  </p>
+              </CardHeader>
+              <CardContent>
+                <div className="grid md:grid-cols-2 gap-4">
+                  {profile?.marital_status && (
+                    <div className="flex items-center gap-2">
+                      <Heart className="h-4 w-4 text-primary" />
+                      <span>Status: {profile.marital_status}</span>
+                    </div>
+                  )}
+                  {profile?.has_kids && (
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4 text-primary" />
+                      <span>Children: {profile.has_kids}</span>
+                    </div>
+                  )}
+                  {profile?.church_name && (
+                    <div className="flex items-center gap-2">
+                      <Church className="h-4 w-4 text-primary" />
+                      <span>{profile.church_name}</span>
+                    </div>
+                  )}
+                  {profile?.age_range && (
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-primary" />
+                      <span>Age: {profile.age_range}</span>
+                    </div>
+                  )}
                 </div>
-              )}
-            </CardContent>
-          </Card>
+                {profile?.life_verse && (
+                  <div className="mt-4 p-4 bg-primary/10 rounded-lg">
+                    <p className="text-sm text-primary font-medium italic">
+                      "{profile.life_verse}"
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* My Events Section */}
           <Card className="gradient-card border-0 shadow-lg">

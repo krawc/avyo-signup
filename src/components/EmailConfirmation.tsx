@@ -76,14 +76,6 @@ const EmailConfirmation = ({ userEmail, onBack }: EmailConfirmationProps) => {
                   {isResending && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />}
                   Resend Confirmation Email
                 </Button>
-                
-                <Button 
-                  variant="outline" 
-                  onClick={onBack}
-                  className="w-full"
-                >
-                  Back to Login
-                </Button>
               </div>
 
               <div className="text-center">

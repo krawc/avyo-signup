@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Heart, Users, Church, MessageCircle, UserCheck, ArrowRight, Star, Quote } from 'lucide-react';
@@ -15,6 +15,20 @@ const Index = () => {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState<'welcome' | 'signup' | 'post-registration' | 'email-confirmation'>('welcome');
   const [userEmail, setUserEmail] = useState('');
+
+  useEffect(() => {
+    // Check for event ID in URL params
+    const urlParams = new URLSearchParams(window.location.search);
+    const eventId = urlParams.get('eventId');
+    
+    if (eventId) {
+      localStorage.setItem('pendingEventId', eventId);
+      // If user is not authenticated, show signup flow
+      if (!user && !loading) {
+        setCurrentStep('signup');
+      }
+    }
+  }, [user, loading]);
 
   const handleSignupComplete = () => {
     setCurrentStep('email-confirmation');
@@ -97,9 +111,6 @@ const Index = () => {
                 AVYO In-Gathering
               </h1>
             </div>
-            {/* <p className="text-xl md:text-2xl text-muted-foreground mb-8 leading-relaxed">
-              AVYO In-Gathering App is designed to connect singles gathered in a specific event, allowing them to interact and match other singles of the same faith and values on the platform.
-            </p> */}
             <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-8 mb-8 border border-blue-100">
               <p className="text-lg text-gray-700 font-medium">
                 AVYO In-Gathering App is designed to connect singles gathered in a specific event, allowing them to interact and match other singles of the same faith and values on the platform.
@@ -161,70 +172,6 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Testimonials Section */}
-      {/* <section className="py-16">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
-              Stories of Faith & Connection
-            </h2>
-            <p className="text-xl text-muted-foreground">
-              See how believers are finding meaningful relationships through our platform
-            </p>
-          </div>
-          
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
-            <Card className="gradient-card border-0 shadow-lg">
-              <CardContent className="p-6">
-                <div className="flex items-center gap-1 mb-4">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                  ))}
-                </div>
-                <Quote className="w-6 h-6 text-blue-500 mb-3" />
-                <p className="text-sm text-muted-foreground mb-4">
-                  "I found my prayer partner and now my best friend through AVYO. It's amazing to connect with someone who truly understands my faith journey."
-                </p>
-                <div className="text-sm font-medium">Sarah M.</div>
-                <div className="text-xs text-muted-foreground">Youth Retreat 2024</div>
-              </CardContent>
-            </Card>
-            
-            <Card className="gradient-card border-0 shadow-lg">
-              <CardContent className="p-6">
-                <div className="flex items-center gap-1 mb-4">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                  ))}
-                </div>
-                <Quote className="w-6 h-6 text-blue-500 mb-3" />
-                <p className="text-sm text-muted-foreground mb-4">
-                  "The platform helped me connect with like-minded believers at our church conference. We're still in touch and growing together in faith!"
-                </p>
-                <div className="text-sm font-medium">David L.</div>
-                <div className="text-xs text-muted-foreground">Faith Conference</div>
-              </CardContent>
-            </Card>
-            
-            <Card className="gradient-card border-0 shadow-lg md:col-span-2 lg:col-span-1">
-              <CardContent className="p-6">
-                <div className="flex items-center gap-1 mb-4">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                  ))}
-                </div>
-                <Quote className="w-6 h-6 text-blue-500 mb-3" />
-                <p className="text-sm text-muted-foreground mb-4">
-                  "What I love most is knowing that everyone here shares my values. It makes conversations so much more meaningful and authentic."
-                </p>
-                <div className="text-sm font-medium">Rachel K.</div>
-                <div className="text-xs text-muted-foreground">Singles Ministry</div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </section> */}
-
       {/* Enhanced CTA Section */}
       <section className="py-16 bg-gradient-to-r from-blue-50 via-purple-50 to-pink-50">
         <div className="container mx-auto px-4 text-center">
@@ -238,12 +185,6 @@ const Index = () => {
             </p>
             
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 shadow-lg border border-white/50 mb-8">
-              {/* <h3 className="text-xl font-semibold mb-4 text-blue-700">Complete Your Faith Profile</h3>
-              <p className="text-muted-foreground mb-6">
-                Fill out our thoughtful questionnaire to help us connect you with believers who share your values, 
-                interests, and spiritual journey.
-              </p> */}
-              
               <Button 
                 className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-4 text-lg rounded-full shadow-lg hover:shadow-xl transition-all duration-300 mb-4"
                 onClick={() => setCurrentStep('signup')} 

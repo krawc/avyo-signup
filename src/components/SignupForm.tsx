@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, Upload, User, Calendar, MapPin, Mail, Phone, Lock } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from '@/integrations/supabase/client';
+import PhoneInput from './PhoneInput';
 
 interface SignupFormProps {
   onComplete: () => void;
@@ -19,9 +20,10 @@ const SignupForm = ({ onComplete, onBack }: SignupFormProps) => {
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
-    dateOfBirth: '',
+    ageRange: '',
     gender: '',
     phoneNumber: '',
+    countryCode: '+1',
     city: '',
     state: '',
     email: '',
@@ -33,8 +35,20 @@ const SignupForm = ({ onComplete, onBack }: SignupFormProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const totalSteps = 3;
 
+  const ageRanges = [
+    { value: '18-24', label: '18-24' },
+    { value: '25-31', label: '25-31' },
+    { value: '32-38', label: '32-38' },
+    { value: '39-45', label: '39-45' },
+    { value: '46+', label: '46+' }
+  ];
+
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handlePhoneChange = (phone: string, countryCode: string) => {
+    setFormData(prev => ({ ...prev, phoneNumber: phone, countryCode }));
   };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -53,7 +67,7 @@ const SignupForm = ({ onComplete, onBack }: SignupFormProps) => {
   const validateStep = (stepNumber: number) => {
     switch (stepNumber) {
       case 1:
-        return formData.firstName && formData.lastName && formData.dateOfBirth && formData.gender;
+        return formData.firstName && formData.lastName && formData.ageRange && formData.gender;
       case 2:
         return formData.city && formData.state && formData.email;
       case 3:
@@ -64,9 +78,18 @@ const SignupForm = ({ onComplete, onBack }: SignupFormProps) => {
   };
 
   const handleSignup = async () => {
-    //e.preventDefault();
-
     setIsSubmitting(true);
+
+    // Check for event ID in URL params or localStorage
+    const urlParams = new URLSearchParams(window.location.search);
+    const eventIdFromUrl = urlParams.get('eventId');
+    const eventIdFromStorage = localStorage.getItem('pendingEventId');
+    const eventId = eventIdFromUrl || eventIdFromStorage;
+
+    // Store event ID for later use
+    if (eventId) {
+      localStorage.setItem('pendingEventId', eventId);
+    }
 
     const redirectUrl = `https://avyo-signup.netlify.app/post-registration`;
     
@@ -81,7 +104,6 @@ const SignupForm = ({ onComplete, onBack }: SignupFormProps) => {
         }
       }
     });
-
 
     if (error) {
       setIsSubmitting(false);
@@ -99,60 +121,56 @@ const SignupForm = ({ onComplete, onBack }: SignupFormProps) => {
         });
       }
     } else {
+      const user = signupData?.user;
 
-    const user = signupData?.user;
+      if (user) {
+        // 1. Upload profile pictures
+        const uploadedUrls = [];
+        for (const file of formData.profilePictures) {
+          const { data: storageData, error: storageError } = await supabase
+            .storage
+            .from('profile-pictures')
+            .upload(`public/${user.id}/${file.name}`, file);
 
-    if (user) {
-      // 1. Upload profile pictures
-      const uploadedUrls = [];
-      for (const file of formData.profilePictures) {
-        const { data: storageData, error: storageError } = await supabase
-          .storage
-          .from('profile-pictures')
-          .upload(`public/${user.id}/${file.name}`, file);
+          if (storageError) {
+            console.error('Upload error:', storageError.message);
+            continue;
+          }
 
-        if (storageError) {
-          console.error('Upload error:', storageError.message);
-          continue;
+          const url = supabase.storage
+            .from('profile-pictures')
+            .getPublicUrl(`public/${user.id}/${file.name}`).data.publicUrl;
+
+          uploadedUrls.push(url);
         }
 
-        const url = supabase.storage
-          .from('profile-pictures')
-          .getPublicUrl(`public/${user.id}/${file.name}`).data.publicUrl;
+        // 2. Insert profile into `profiles` table
+        const { error: profileError } = await supabase.from('profiles').upsert({
+          id: user.id,
+          age_range: formData.ageRange,
+          gender: formData.gender,
+          city: formData.city,
+          state: formData.state,
+          phone_number: formData.countryCode + formData.phoneNumber,
+          profile_picture_urls: uploadedUrls,
+        });
 
-        uploadedUrls.push(url);
+        if (profileError) {
+          console.error('Profile insert error:', profileError.message);
+        }
       }
-
-      // 2. Insert profile into `profiles` table
-      const { error: profileError } = await supabase.from('profiles').upsert({
-        id: user.id,
-        date_of_birth: formData.dateOfBirth,
-        gender: formData.gender,
-        city: formData.city,
-        state: formData.state,
-        phone_number: formData.phoneNumber,
-        profile_picture_urls: uploadedUrls,
-      });
-
-      if (profileError) {
-        console.error('Profile insert error:', profileError.message);
-      }
-    }
-    setIsSubmitting(false);
+      setIsSubmitting(false);
       toast({
         title: "Check your email!",
         description: "We've sent you a confirmation link to complete your registration.",
       });
     }
     onComplete();
-    //setLoading(false);
   };
-
 
   const handleNext = () => {
     if (validateStep(step)) {
       if (step === totalSteps) {
-        // Simulate successful registration
         handleSignup()
       } else {
         setStep(step + 1);
@@ -244,14 +262,19 @@ const SignupForm = ({ onComplete, onBack }: SignupFormProps) => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="dateOfBirth">Date of Birth *</Label>
-                    <Input
-                      id="dateOfBirth"
-                      type="date"
-                      value={formData.dateOfBirth}
-                      onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
-                      className="bg-white/50 border-white/20"
-                    />
+                    <Label htmlFor="ageRange">Age Range *</Label>
+                    <Select value={formData.ageRange} onValueChange={(value) => handleInputChange('ageRange', value)}>
+                      <SelectTrigger className="bg-white/50 border-white/20">
+                        <SelectValue placeholder="Select your age range" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ageRanges.map((range) => (
+                          <SelectItem key={range.value} value={range.value}>
+                            {range.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="space-y-2">
@@ -327,17 +350,11 @@ const SignupForm = ({ onComplete, onBack }: SignupFormProps) => {
 
                   <div className="space-y-2">
                     <Label htmlFor="phoneNumber">Phone Number (Optional)</Label>
-                    <div className="relative">
-                      <Phone className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-                      <Input
-                        id="phoneNumber"
-                        type="tel"
-                        value={formData.phoneNumber}
-                        onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
-                        placeholder="(555) 123-4567"
-                        className="bg-white/50 border-white/20 pl-10"
-                      />
-                    </div>
+                    <PhoneInput
+                      value={formData.phoneNumber}
+                      countryCode={formData.countryCode}
+                      onChange={handlePhoneChange}
+                    />
                   </div>
                 </>
               )}
@@ -395,6 +412,7 @@ const SignupForm = ({ onComplete, onBack }: SignupFormProps) => {
               <Button 
                 onClick={handleNext}
                 className="w-full text-lg py-6 bg-primary hover:bg-primary/90 transition-all duration-300"
+                disabled={isSubmitting}
               >
                 {step === totalSteps ? 'Create Account' : 'Continue'}
               </Button>
