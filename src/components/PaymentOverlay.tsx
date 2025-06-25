@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Lock, CreditCard, Calendar } from 'lucide-react';
+import { Lock, CreditCard } from 'lucide-react';
 
 interface PaymentOverlayProps {
   eventId: string;
@@ -26,7 +26,7 @@ const PaymentOverlay = ({ eventId, eventTitle, isPostEvent = false, onPaymentSuc
         body: {
           eventId,
           eventTitle,
-          isPostEvent
+          isPostEvent: false
         }
       });
 
@@ -40,24 +40,18 @@ const PaymentOverlay = ({ eventId, eventTitle, isPostEvent = false, onPaymentSuc
     }
   };
 
-  const price = isPostEvent ? '$19.99' : '$49.99';
-  const description = isPostEvent 
-    ? 'Access event content and connections for 3 months after the event has ended.'
-    : 'Join this event and access all features including matches, connections, and live chat.';
+  const price = '$49.99';
+  const description = 'Join this event and access all features including matches, connections, and live chat.';
 
   return (
     <div className="fixed inset-0 z-10 flex items-center justify-center bg-white/95 backdrop-blur-md mt-50">
       <Card className="w-full max-w-md mx-4 gradient-card border-0 shadow-2xl">
         <CardHeader className="text-center">
           <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-            {isPostEvent ? (
-              <Calendar className="w-8 h-8 text-primary" />
-            ) : (
-              <Lock className="w-8 h-8 text-primary" />
-            )}
+            <Lock className="w-8 h-8 text-primary" />
           </div>
           <CardTitle className="text-2xl">
-            {isPostEvent ? 'Post-Event Access' : 'Event Access Required'}
+            Event Access Required
           </CardTitle>
           <CardDescription className="text-lg">
             {description}
@@ -67,7 +61,7 @@ const PaymentOverlay = ({ eventId, eventTitle, isPostEvent = false, onPaymentSuc
           <div className="text-center">
             <div className="text-3xl font-bold text-primary mb-2">{price}</div>
             <div className="text-sm text-muted-foreground">
-              {isPostEvent ? 'One-time payment for 3 months access' : 'One-time payment for full event access'}
+              One-time payment for full event access
             </div>
           </div>
           

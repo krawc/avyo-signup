@@ -5,8 +5,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { User, Heart, X, MapPin, Calendar } from 'lucide-react';
+import { User, Heart, X, MapPin, Eye } from 'lucide-react';
 import { getSignedUrls } from '@/lib/utils';
+import ProfileViewPopup from './ProfileViewPopup';
 
 interface Match {
   user_id: string;
@@ -32,6 +33,8 @@ const MatchesTable = ({ eventId, excludeUserIds = [], onMatchResponse }: Matches
   const { user } = useAuth();
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
+  const [showProfilePopup, setShowProfilePopup] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -85,6 +88,11 @@ const MatchesTable = ({ eventId, excludeUserIds = [], onMatchResponse }: Matches
     onMatchResponse(targetUserId, response);
   };
 
+  const handleViewProfile = (userId: string) => {
+    setSelectedProfileId(userId);
+    setShowProfilePopup(true);
+  };
+
   const getDisplayName = (profile: Match['profile']) => {
     if (!profile) return 'Anonymous User';
     
@@ -93,18 +101,6 @@ const MatchesTable = ({ eventId, excludeUserIds = [], onMatchResponse }: Matches
       return `${profile.first_name} ${profile.last_name}`;
     }
     return profile.first_name || 'Anonymous User';
-  };
-
-  const getAge = (dateOfBirth: string | null) => {
-    if (!dateOfBirth) return null;
-    const today = new Date();
-    const birthDate = new Date(dateOfBirth);
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-      age--;
-    }
-    return age;
   };
 
   const getLocation = (profile: Match['profile']) => {
@@ -131,69 +127,84 @@ const MatchesTable = ({ eventId, excludeUserIds = [], onMatchResponse }: Matches
   }
 
   return (
-    <div className="space-y-4">
-      {matches.map((match) => (
-        <div 
-          key={match.user_id} 
-          className="flex items-center justify-between p-4 border rounded-lg bg-white/50"
-        >
-          <div className="flex items-center gap-4">
-            <Avatar className="h-12 w-12 ring-2 ring-white/50">
-              <AvatarImage 
-                src={match.profile?.profile_picture_urls?.[0] || ''} 
-                alt={getDisplayName(match.profile)} 
-              />
-              <AvatarFallback className="bg-gradient-to-br from-pink-100 to-purple-100">
-                <User className="h-6 w-6" />
-              </AvatarFallback>
-            </Avatar>
-            
-            <div className="space-y-1">
-              <h4 className="font-semibold text-lg">
-                {getDisplayName(match.profile)}
-              </h4>
+    <>
+      <div className="space-y-4">
+        {matches.map((match) => (
+          <div 
+            key={match.user_id} 
+            className="flex items-center justify-between p-4 border rounded-lg bg-white/50"
+          >
+            <div className="flex items-center gap-4">
+              <Avatar className="h-12 w-12 ring-2 ring-white/50">
+                <AvatarImage 
+                  src={match.profile?.profile_picture_urls?.[0] || ''} 
+                  alt={getDisplayName(match.profile)} 
+                />
+                <AvatarFallback className="bg-gradient-to-br from-pink-100 to-purple-100">
+                  <User className="h-6 w-6" />
+                </AvatarFallback>
+              </Avatar>
               
-              <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                {/* {getAge(match.profile?.date_of_birth) && (
-                  <div className="flex items-center gap-1">
-                    <Calendar className="h-3 w-3" />
-                    {getAge(match.profile?.date_of_birth)}
-                  </div>
-                )} */}
-                {getLocation(match.profile) && (
-                  <div className="flex items-center gap-1">
-                    <MapPin className="h-3 w-3" />
-                    {getLocation(match.profile)}
-                  </div>
-                )}
-              </div>
+              <div className="space-y-1">
+                <h4 className="font-semibold text-lg">
+                  {getDisplayName(match.profile)}
+                </h4>
+                
+                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                  {getLocation(match.profile) && (
+                    <div className="flex items-center gap-1">
+                      <MapPin className="h-3 w-3" />
+                      {getLocation(match.profile)}
+                    </div>
+                  )}
+                </div>
 
-              <Badge variant="secondary" className="bg-gradient-to-r from-pink-100 to-purple-100">
-                {match.compatibility_score}% match
-              </Badge>
+                <Badge variant="secondary" className="bg-gradient-to-r from-pink-100 to-purple-100">
+                  {match.compatibility_score}% match
+                </Badge>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="border-blue-200 hover:bg-blue-50"
+                onClick={() => handleViewProfile(match.user_id)}
+              >
+                <Eye className="h-4 w-4" />
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="border-red-200 hover:bg-red-50"
+                onClick={() => handleResponse(match.user_id, 'no')}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+              <Button 
+                size="sm" 
+                className="bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700"
+                onClick={() => handleResponse(match.user_id, 'yes')}
+              >
+                <Heart className="h-4 w-4" />
+              </Button>
             </div>
           </div>
+        ))}
+      </div>
 
-          <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="border-red-200 hover:bg-red-50"
-              onClick={() => handleResponse(match.user_id, 'no')}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-            <Button 
-              size="sm" 
-              className="bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700"
-              onClick={() => handleResponse(match.user_id, 'yes')}
-            >
-              <Heart className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      ))}
-    </div>
+      <ProfileViewPopup
+        userId={selectedProfileId}
+        eventId={eventId}
+        isOpen={showProfilePopup}
+        onClose={() => {
+          setShowProfilePopup(false);
+          setSelectedProfileId(null);
+        }}
+        onMatchResponse={handleResponse}
+      />
+    </>
   );
 };
 

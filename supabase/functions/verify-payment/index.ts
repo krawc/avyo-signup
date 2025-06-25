@@ -36,22 +36,10 @@ serve(async (req) => {
     const session = await stripe.checkout.sessions.retrieve(sessionId);
     
     if (session.payment_status === "paid" && session.metadata) {
-      const { eventId, userId, isPostEvent } = session.metadata;
+      const { eventId, userId } = session.metadata;
       
       if (userId !== user.id) {
         throw new Error("Session user mismatch");
-      }
-
-      // Get event details to set proper access expiration
-      const { data: eventData, error: eventError } = await supabaseService
-        .from('events')
-        .select('end_date, start_date')
-        .eq('id', eventId)
-        .single();
-
-      if (eventError) {
-        console.error('Error fetching event:', eventError);
-        throw new Error("Event not found");
       }
 
       // Check if user is already an attendee
@@ -72,16 +60,6 @@ serve(async (req) => {
           });
       }
 
-      // Calculate access expiration
-      let accessExpiresAt;
-      if (isPostEvent === 'true') {
-        // Post-event payments: 3 months from payment date
-        accessExpiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
-      } else {
-        // Regular payments: access expires when event ends (or starts if no end date)
-        accessExpiresAt = eventData.end_date ? new Date(eventData.end_date) : new Date(eventData.start_date);
-      }
-
       // Record the payment access
       await supabaseService
         .from('event_payments')
@@ -92,15 +70,14 @@ serve(async (req) => {
           amount: session.amount_total,
           currency: session.currency,
           status: 'paid',
-          is_post_event: isPostEvent === 'true',
-          access_expires_at: accessExpiresAt.toISOString(),
+          is_post_event: false,
           updated_at: new Date().toISOString()
         }, { onConflict: 'user_id,event_id' });
 
       return new Response(JSON.stringify({ 
         success: true, 
         hasAccess: true,
-        isPostEvent: isPostEvent === 'true'
+        isPostEvent: false
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,

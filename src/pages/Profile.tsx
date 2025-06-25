@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -5,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { User, Edit, Calendar, MapPin, Church, Heart, Users, Baby } from 'lucide-react';
+import { User, Edit, Calendar, MapPin, Church, Heart, Users, Baby, Quote } from 'lucide-react';
 import Header from '@/components/Header';
 import ProfileEditor from '@/components/ProfileEditor';
 
@@ -23,6 +24,8 @@ interface Profile {
   denomination: string | null;
   life_verse: string | null;
   has_kids: string | null;
+  phone_number: string | null;
+  marital_status: string | null;
   profile_picture_urls: string[];
   created_at: string;
   updated_at: string;
@@ -52,11 +55,14 @@ const Profile = () => {
     if (error) {
       console.error('Error fetching profile:', error);
     } else {
-      // Ensure all required fields are present, including age_range
+      // Ensure all required fields are present
       const profileWithDefaults = {
         ...data,
         profile_picture_urls: data.profile_picture_urls || [],
-        age_range: data.age_range || null
+        age_range: data.age_range || null,
+        denomination: data.denomination || null,
+        phone_number: data.phone_number || null,
+        marital_status: data.marital_status || null
       };
       setProfile(profileWithDefaults);
     }

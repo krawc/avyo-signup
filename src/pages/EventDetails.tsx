@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -26,7 +27,6 @@ interface Event {
 
 interface PaymentAccess {
   hasAccess: boolean;
-  isPostEvent: boolean;
 }
 
 const EventDetails = () => {
@@ -36,14 +36,13 @@ const EventDetails = () => {
   const [searchParams] = useSearchParams();
   const [event, setEvent] = useState<Event | null>(null);
   const [isAttending, setIsAttending] = useState(false);
-  const [paymentAccess, setPaymentAccess] = useState<PaymentAccess>({ hasAccess: false, isPostEvent: false });
+  const [paymentAccess, setPaymentAccess] = useState<PaymentAccess>({ hasAccess: false });
   const [loading, setLoading] = useState(true);
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
   const [showPaymentOverlay, setShowPaymentOverlay] = useState(false);
 
   useEffect(() => {
     if (!user) {
-      //navigate('/auth');
       return;
     }
 
@@ -96,42 +95,12 @@ const EventDetails = () => {
       console.error('Error checking payment:', error);
     }
 
-    console.log('payment checked')
-
-    console.log(payment)
+    console.log('payment checked', payment);
 
     if (payment) {
-      console.log(payment)
-
-      const now = new Date();
-      const eventDate = event ? new Date(event.end_date) : new Date();
-      const isEventEnded = now > eventDate;
-      
-      // Check if access has expired (for post-event payments)
-      if (payment.is_post_event && payment.access_expires_at) {
-        const expiresAt = new Date(payment.access_expires_at);
-        const hasValidAccess = now < expiresAt;
-        setPaymentAccess({ 
-          hasAccess: hasValidAccess, 
-          isPostEvent: isEventEnded && !hasValidAccess 
-        });
-      } else {
-        setPaymentAccess({ 
-          hasAccess: !isEventEnded || payment.is_post_event, 
-          isPostEvent: isEventEnded 
-        });
-      }
+      setPaymentAccess({ hasAccess: true });
     } else {
-      // No payment found
-      const now = new Date();
-      const eventDate = event ? new Date(event.end_date) : new Date();
-      const isEventEnded = now > eventDate;
-      console.log(event, isEventEnded)
-      
-      setPaymentAccess({ 
-        hasAccess: false, 
-        isPostEvent: isEventEnded 
-      });
+      setPaymentAccess({ hasAccess: false });
     }
 
     // Check attendance status
@@ -165,7 +134,7 @@ const EventDetails = () => {
       if (error) throw error;
 
       if (data.success) {
-        setPaymentAccess({ hasAccess: true, isPostEvent: data.isPostEvent });
+        setPaymentAccess({ hasAccess: true });
         setIsAttending(true);
         // Remove payment params from URL
         navigate(`/events/${eventId}`, { replace: true });
@@ -264,7 +233,7 @@ const EventDetails = () => {
                 <div className="flex items-center gap-2">
                   {paymentAccess.hasAccess && (
                     <Badge variant="default" className="bg-green-500">
-                      {paymentAccess.isPostEvent ? 'Post-Event Access' : 'Event Access'}
+                      Event Access
                     </Badge>
                   )}
                   {isAttending && !paymentAccess.hasAccess && (
@@ -281,9 +250,9 @@ const EventDetails = () => {
               <PaymentOverlay 
                 eventId={event.id}
                 eventTitle={event.title}
-                isPostEvent={paymentAccess.isPostEvent}
+                isPostEvent={false}
                 onPaymentSuccess={() => {
-                  setPaymentAccess({ hasAccess: true, isPostEvent: paymentAccess.isPostEvent });
+                  setPaymentAccess({ hasAccess: true });
                   setIsAttending(true);
                   setShowPaymentOverlay(false);
                 }}
