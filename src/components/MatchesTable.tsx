@@ -134,7 +134,7 @@ const MatchesTable = ({ eventId, excludeUserIds = [], onMatchResponse }: Matches
             key={match.user_id} 
             className="flex items-center justify-between p-4 border rounded-lg bg-white/50"
           >
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4" onClick={() => handleViewProfile(match.user_id)}>
               <Avatar className="h-12 w-12 ring-2 ring-white/50">
                 <AvatarImage 
                   src={match.profile?.profile_picture_urls?.[0] || ''} 
@@ -166,14 +166,14 @@ const MatchesTable = ({ eventId, excludeUserIds = [], onMatchResponse }: Matches
             </div>
 
             <div className="flex gap-2">
-              <Button 
+              {/* <Button 
                 variant="outline" 
                 size="sm" 
                 className="border-blue-200 hover:bg-blue-50"
                 onClick={() => handleViewProfile(match.user_id)}
               >
                 <Eye className="h-4 w-4" />
-              </Button>
+              </Button> */}
               <Button 
                 variant="outline" 
                 size="sm" 
