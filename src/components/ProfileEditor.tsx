@@ -43,11 +43,18 @@ const ProfileEditor = ({ profile, onUpdate, onCancel }: ProfileEditorProps) => {
   const [newProfilePictures, setNewProfilePictures] = useState<File[]>([]);
 
   const ageRanges = [
-    { value: '18-24', label: '18-24' },
-    { value: '25-31', label: '25-31' },
-    { value: '32-38', label: '32-38' },
-    { value: '39-45', label: '39-45' },
-    { value: '46+', label: '46+' }
+    { value: 'Below 25', label: 'Below 25' },
+    { value: '26-30', label: '26-30' },
+    { value: '31-35', label: '31-35' },
+    { value: '36-40', label: '36-40' },
+    { value: '41-45', label: '41-45' },
+    { value: '46-50', label: '46-50' },
+    { value: '51-55', label: '51-55' },
+    { value: '56-60', label: '56-60' },
+    { value: '61-65', label: '61-65' },
+    { value: '66-70', label: '66-70' },
+    { value: '71-75', label: '71-75' },
+    { value: '76+', label: '76+' },
   ];
 
   const maritalStatusOptions = [
