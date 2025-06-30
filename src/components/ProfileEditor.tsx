@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -69,8 +68,48 @@ const ProfileEditor = ({ profile, onUpdate, onCancel }: ProfileEditorProps) => {
     { value: 'want_kids', label: 'Want Kids' }
   ];
 
+  const calculateAgeRange = (dateOfBirth: string) => {
+    if (!dateOfBirth) return '';
+    
+    const birthDate = new Date(dateOfBirth);
+    const today = new Date();
+    const age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    
+    const actualAge = monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate()) 
+      ? age - 1 
+      : age;
+    
+    if (actualAge < 25) return 'Below 25';
+    if (actualAge >= 26 && actualAge <= 30) return '26-30';
+    if (actualAge >= 31 && actualAge <= 35) return '31-35';
+    if (actualAge >= 36 && actualAge <= 40) return '36-40';
+    if (actualAge >= 41 && actualAge <= 45) return '41-45';
+    if (actualAge >= 46 && actualAge <= 50) return '46-50';
+    if (actualAge >= 51 && actualAge <= 55) return '51-55';
+    if (actualAge >= 56 && actualAge <= 60) return '56-60';
+    if (actualAge >= 61 && actualAge <= 65) return '61-65';
+    if (actualAge >= 66 && actualAge <= 70) return '66-70';
+    if (actualAge >= 71 && actualAge <= 75) return '71-75';
+    if (actualAge >= 76) return '76+';
+    
+    return '';
+  };
+
   const handleInputChange = (field: string, value: string) => {
-    setEditedProfile(prev => ({ ...prev, [field]: value }));
+    setEditedProfile(prev => {
+      const updated = { ...prev, [field]: value };
+      
+      // Auto-fill age range when date of birth changes
+      if (field === 'date_of_birth' && value) {
+        const ageRange = calculateAgeRange(value);
+        if (ageRange) {
+          updated.age_range = ageRange;
+        }
+      }
+      
+      return updated;
+    });
   };
 
   const handlePhoneChange = (phone: string, countryCode: string) => {

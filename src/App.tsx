@@ -12,6 +12,7 @@ import Events from "./pages/Events";
 import PostRegistration from "./pages/PostRegistration";
 import EventDetails from "./pages/EventDetails";
 import QRScanner from "./pages/QRScanner";
+import AccountSettings from "./pages/AccountSettings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +31,7 @@ const App = () => (
             <Route path="/events" element={<Events />} />
             <Route path="/post-registration" element={<PostRegistration />} />
             <Route path="/qr-scanner" element={<QRScanner />} />
+            <Route path="/account-settings" element={<AccountSettings />} />
             <Route path="/events/:eventId" element={<EventDetails />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

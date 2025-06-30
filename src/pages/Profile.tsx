@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, MapPin, Church, Heart, Users, User, ScanQrCode, Edit } from 'lucide-react';
+import { Calendar, MapPin, Church, Heart, Users, User, ScanQrCode, Edit, Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Header from '@/components/Header';
 import ProfileEditor from '@/components/ProfileEditor';
@@ -37,6 +37,7 @@ interface Event {
   location: string | null;
   start_date: string;
   end_date: string | null;
+  attendee_count?: number;
 }
 
 const Profile = () => {
@@ -125,8 +126,21 @@ const Profile = () => {
     if (error) {
       console.error('Error fetching events:', error);
     } else {
-      const events = data?.map(item => item.events).filter(Boolean) as Event[];
-      setMyEvents(events || []);
+      const eventsWithCounts = await Promise.all(
+        (data?.map(item => item.events).filter(Boolean) || []).map(async (event: any) => {
+          // Fetch attendee count for each event
+          const { count } = await supabase
+            .from('event_attendees')
+            .select('*', { count: 'exact', head: true })
+            .eq('event_id', event.id);
+          
+          return {
+            ...event,
+            attendee_count: count || 0
+          };
+        })
+      );
+      setMyEvents(eventsWithCounts);
     }
     setLoading(false);
   };
@@ -190,17 +204,26 @@ const Profile = () => {
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
                       <CardTitle className="text-3xl">{getDisplayName()}</CardTitle>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setIsEditing(true)}
-                        className="ml-auto"
-                      >
-                        <Edit className="h-4 w-4 mr-2" />
-                        Edit Profile
-                      </Button>
+                      <div className="flex gap-2 ml-auto">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setIsEditing(true)}
+                        >
+                          <Edit className="h-4 w-4 mr-2" />
+                          Edit Profile
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => navigate('/account-settings')}
+                        >
+                          <Settings className="h-4 w-4 mr-2" />
+                          Settings
+                        </Button>
+                      </div>
                     </div>
                     <CardDescription className="text-lg mt-2">
                       {profile?.city && profile?.state && (
@@ -292,12 +315,12 @@ const Profile = () => {
                       onClick={() => navigate(`/events/${event.id}`)}
                     >
                       <div className="flex justify-between items-start">
-                        <div>
+                        <div className="flex-1">
                           <h3 className="font-semibold text-lg">{event.title}</h3>
                           {event.description && (
                             <p className="text-muted-foreground mt-1">{event.description}</p>
                           )}
-                          <div className="flex sm-items-center gap-4 my-4 text-sm text-muted-foreground flex-col sm-flex-row">
+                          <div className="flex items-center gap-4 mt-4 text-sm text-muted-foreground flex-col sm:flex-row">
                             <div className="flex items-center gap-1">
                               <Calendar className="h-4 w-4" />
                               {formatDate(event.start_date)}
@@ -308,6 +331,10 @@ const Profile = () => {
                                 {event.location}
                               </div>
                             )}
+                            <div className="flex items-center gap-1">
+                              <Users className="h-4 w-4" />
+                              {event.attendee_count} attendees
+                            </div>
                           </div>
                         </div>
                         <Badge variant="secondary">Attending</Badge>

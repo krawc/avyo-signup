@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 import { Calendar, MapPin, Users, MessageCircle, Eye } from 'lucide-react';
 import { format } from 'date-fns';
 import EventMatches from '@/components/EventMatches';
@@ -12,6 +13,8 @@ import DirectMessages from '@/components/DirectMessages';
 import EventAttendees from '@/components/EventAttendees';
 import ProfileViewsList from '@/components/ProfileViewsList';
 import PaymentOverlay from '@/components/PaymentOverlay';
+import TermsAndConditions from '@/components/TermsAndConditions';
+import { useTermsAcceptance } from '@/hooks/useTermsAcceptance';
 import Header from '@/components/Header';
 
 interface Event {
@@ -33,6 +36,10 @@ const EventDetails = () => {
   const [loading, setLoading] = useState(true);
   const [showPaymentOverlay, setShowPaymentOverlay] = useState(false);
   const [hasAccess, setHasAccess] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
+  const [activeTab, setActiveTab] = useState('matches');
+  
+  const { hasAccepted: hasAcceptedMessaging, loading: loadingMessagingTerms, markAsAccepted: markMessagingAccepted } = useTermsAcceptance('messaging');
 
   useEffect(() => {
     if (eventId && user) {
@@ -40,6 +47,13 @@ const EventDetails = () => {
       checkAccess();
     }
   }, [eventId, user]);
+
+  useEffect(() => {
+    // Show terms modal when user tries to access messages tab without accepting terms
+    if (activeTab === 'messages' && !loadingMessagingTerms && !hasAcceptedMessaging) {
+      setShowTermsModal(true);
+    }
+  }, [activeTab, hasAcceptedMessaging, loadingMessagingTerms]);
 
   const loadEvent = async () => {
     if (!eventId) return;
@@ -89,6 +103,16 @@ const EventDetails = () => {
   const handlePaymentSuccess = () => {
     setHasAccess(true);
     setShowPaymentOverlay(false);
+  };
+
+  const handleTermsAccept = () => {
+    markMessagingAccepted();
+    setShowTermsModal(false);
+  };
+
+  const handleTermsDecline = () => {
+    setShowTermsModal(false);
+    setActiveTab('matches'); // Switch back to matches tab
   };
 
   if (loading) {
@@ -164,11 +188,10 @@ const EventDetails = () => {
         </div>
 
         <div className="max-w-4xl mx-auto">
-          <Tabs defaultValue="matches" className="w-full">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-3 mb-6 overflow-x-auto">
               <TabsTrigger value="matches" className="text-xs md:text-sm">Matches</TabsTrigger>
               <TabsTrigger value="messages" className="text-xs md:text-sm">Messages</TabsTrigger>
-              {/* <TabsTrigger value="attendees" className="text-xs md:text-sm">Attendees</TabsTrigger> */}
               <TabsTrigger value="profile-views" className="text-xs md:text-sm">Profile Views</TabsTrigger>
             </TabsList>
 
@@ -179,19 +202,24 @@ const EventDetails = () => {
               />
             </TabsContent>
 
-            <TabsContent value="messages">
-              <DirectMessages 
-                eventId={eventId!}
-                onInteractionAttempt={hasAccess ? undefined : handleInteractionAttempt}
-              />
+            <TabsContent value="messages" className="relative">
+              {!hasAcceptedMessaging && !loadingMessagingTerms && (
+                <div className="absolute inset-0 z-10 bg-background/80 backdrop-blur-sm rounded-lg flex items-center justify-center">
+                  <Button 
+                    onClick={() => setShowTermsModal(true)}
+                    className="bg-primary hover:bg-primary/90"
+                  >
+                    Read Terms and Conditions to Access Messages
+                  </Button>
+                </div>
+              )}
+              <div className={!hasAcceptedMessaging && !loadingMessagingTerms ? 'blur-sm pointer-events-none' : ''}>
+                <DirectMessages 
+                  eventId={eventId!}
+                  onInteractionAttempt={hasAccess ? undefined : handleInteractionAttempt}
+                />
+              </div>
             </TabsContent>
-
-            {/* <TabsContent value="attendees">
-              <EventAttendees 
-                eventId={eventId!}
-                onInteractionAttempt={hasAccess ? undefined : handleInteractionAttempt}
-              />
-            </TabsContent> */}
 
             <TabsContent value="profile-views">
               <ProfileViewsList eventId={eventId!} />
@@ -205,6 +233,16 @@ const EventDetails = () => {
             eventId={eventId!}
             onClose={() => setShowPaymentOverlay(false)}
             onPaymentSuccess={handlePaymentSuccess}
+          />
+        )}
+
+        {/* Terms and Conditions Modal */}
+        {showTermsModal && (
+          <TermsAndConditions
+            isOpen={showTermsModal}
+            onClose={handleTermsDecline}
+            onAccept={handleTermsAccept}
+            termsType="messaging"
           />
         )}
       </div>
