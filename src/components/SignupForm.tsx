@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -28,7 +27,8 @@ const SignupForm = ({ onComplete, onBack }: SignupFormProps) => {
     state: '',
     email: '',
     password: '',
-    profilePictures: [] as File[]
+    profilePictures: [] as File[],
+    dateOfBirth: ''
   });
 
   const [step, setStep] = useState(1);
@@ -69,6 +69,38 @@ const SignupForm = ({ onComplete, onBack }: SignupFormProps) => {
       return;
     }
     setFormData(prev => ({ ...prev, profilePictures: files }));
+  };
+
+  const calculateAgeRange = (birthDate: string) => {
+    const today = new Date();
+    const birth = new Date(birthDate);
+    const age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    
+    const actualAge = monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate()) 
+      ? age - 1 
+      : age;
+
+    if (actualAge < 25) return 'Below 25';
+    if (actualAge <= 30) return '26-30';
+    if (actualAge <= 35) return '31-35';
+    if (actualAge <= 40) return '36-40';
+    if (actualAge <= 45) return '41-45';
+    if (actualAge <= 50) return '46-50';
+    if (actualAge <= 55) return '51-55';
+    if (actualAge <= 60) return '56-60';
+    if (actualAge <= 65) return '61-65';
+    if (actualAge <= 70) return '66-70';
+    if (actualAge <= 75) return '71-75';
+    return '76+';
+  };
+
+  const handleDateOfBirthChange = (date: string) => {
+    setFormData(prev => ({
+      ...prev,
+      dateOfBirth: date,
+      ageRange: calculateAgeRange(date)
+    }));
   };
 
   const validateStep = (stepNumber: number) => {
@@ -266,6 +298,17 @@ const SignupForm = ({ onComplete, onBack }: SignupFormProps) => {
                         className="bg-white/50 border-white/20"
                       />
                     </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="dateOfBirth">Date of Birth *</Label>
+                    <Input
+                      id="dateOfBirth"
+                      type="date"
+                      value={formData.dateOfBirth}
+                      onChange={(e) => handleDateOfBirthChange(e.target.value)}
+                      className="bg-white/50 border-white/20"
+                    />
                   </div>
 
                   <div className="space-y-2">

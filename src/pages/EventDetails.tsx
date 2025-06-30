@@ -1,289 +1,232 @@
-
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Calendar, MapPin, Users, MessageCircle, Heart, CheckCircle } from 'lucide-react';
-import Header from '@/components/Header';
-import EventAttendees from '@/components/EventAttendees';
-import EventConnections from '@/components/EventConnections';
-import DirectMessages from '@/components/DirectMessages';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ArrowLeft, Calendar, MapPin, Users, MessageCircle, Heart, Eye } from 'lucide-react';
+import { format } from 'date-fns';
 import EventMatches from '@/components/EventMatches';
+import DirectMessages from '@/components/DirectMessages';
+import EventAttendees from '@/components/EventAttendees';
+import EventChat from '@/components/EventChat';
+import ProfileViewsList from '@/components/ProfileViewsList';
 import PaymentOverlay from '@/components/PaymentOverlay';
 
 interface Event {
   id: string;
   title: string;
   description: string | null;
-  location: string | null;
   start_date: string;
   end_date: string | null;
+  location: string | null;
   created_by: string;
-}
-
-interface PaymentAccess {
-  hasAccess: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 const EventDetails = () => {
-  const { eventId } = useParams<{ eventId: string }>();
-  const { user } = useAuth();
+  const { eventId } = useParams();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const { user } = useAuth();
   const [event, setEvent] = useState<Event | null>(null);
-  const [isAttending, setIsAttending] = useState(false);
-  const [paymentAccess, setPaymentAccess] = useState<PaymentAccess>({ hasAccess: false });
   const [loading, setLoading] = useState(true);
-  const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
   const [showPaymentOverlay, setShowPaymentOverlay] = useState(false);
+  const [hasAccess, setHasAccess] = useState(false);
 
   useEffect(() => {
-    if (!user) {
-      return;
+    if (eventId && user) {
+      loadEvent();
+      checkAccess();
     }
+  }, [eventId, user]);
 
-    if (!eventId) {
-      navigate('/');
-      return;  
-    }
-
-    fetchEvent();
-    checkPaymentAccess();
-
-    // Check for payment success
-    if (searchParams.get('payment') === 'success') {
-      setShowPaymentSuccess(true);
-      verifyPayment();
-    }
-  }, [eventId, user, navigate, searchParams]);
-
-  const fetchEvent = async () => {
+  const loadEvent = async () => {
     if (!eventId) return;
 
-    const { data, error } = await supabase
-      .from('events')
-      .select('*')
-      .eq('id', eventId)
-      .single();
-
-    if (error) {
-      console.error('Error fetching event:', error);
-      navigate('/');
-    } else {
-      setEvent(data);
-    }
-    setLoading(false);
-  };
-
-  const checkPaymentAccess = async () => {
-    if (!eventId || !user) return;
-
-    // Check if user has paid for this event
-    const { data: payment, error } = await supabase
-      .from('event_payments')
-      .select('*')
-      .eq('event_id', eventId)
-      .eq('user_id', user.id)
-      .eq('status', 'paid')
-      .maybeSingle();
-
-    if (error) {
-      console.error('Error checking payment:', error);
-    }
-
-    console.log('payment checked', payment);
-
-    if (payment) {
-      setPaymentAccess({ hasAccess: true });
-    } else {
-      setPaymentAccess({ hasAccess: false });
-    }
-
-    // Check attendance status
-    checkAttendanceStatus();
-  };
-
-  const checkAttendanceStatus = async () => {
-    if (!eventId || !user) return;
-
-    const { data, error } = await supabase
-      .from('event_attendees')
-      .select('id')
-      .eq('event_id', eventId)
-      .eq('user_id', user.id)
-      .maybeSingle();
-
-    if (!error && data) {
-      setIsAttending(true);
-    }
-  };
-
-  const verifyPayment = async () => {
-    const sessionId = searchParams.get('session_id') || new URLSearchParams(window.location.search).get('session_id');
-    if (!sessionId) return;
-
     try {
-      const { data, error } = await supabase.functions.invoke('verify-payment', {
-        body: { sessionId }
-      });
+      const { data, error } = await supabase
+        .from('events')
+        .select('*')
+        .eq('id', eventId)
+        .single();
 
       if (error) throw error;
-
-      if (data.success) {
-        setPaymentAccess({ hasAccess: true });
-        setIsAttending(true);
-        // Remove payment params from URL
-        navigate(`/events/${eventId}`, { replace: true });
-      }
+      setEvent(data);
     } catch (error) {
-      console.error('Payment verification error:', error);
+      console.error('Error loading event:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-    });
+  const checkAccess = async () => {
+    if (!eventId || !user) return;
+
+    try {
+      // Check if user has paid for this event
+      const { data: payment, error } = await supabase
+        .from('event_payments')
+        .select('*')
+        .eq('event_id', eventId)
+        .eq('user_id', user.id)
+        .eq('status', 'completed')
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        throw error;
+      }
+
+      setHasAccess(!!payment);
+    } catch (error) {
+      console.error('Error checking access:', error);
+    }
+  };
+
+  const handleInteractionAttempt = () => {
+    setShowPaymentOverlay(true);
+  };
+
+  const handlePaymentSuccess = () => {
+    setHasAccess(true);
+    setShowPaymentOverlay(false);
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen gradient-bg">
-        <Header />
-        <div className="container mx-auto px-4 py-8">
-          <div className="text-center">Loading...</div>
-        </div>
+      <div className="min-h-screen gradient-bg flex items-center justify-center">
+        <div className="animate-pulse text-lg">Loading event...</div>
       </div>
     );
   }
 
   if (!event) {
     return (
-      <div className="min-h-screen gradient-bg">
-        <Header />
-        <div className="container mx-auto px-4 py-8">
-          <div className="text-center">Event not found</div>
+      <div className="min-h-screen gradient-bg flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold mb-4">Event not found</h2>
+          <Button onClick={() => navigate('/events')}>
+            Back to Events
+          </Button>
         </div>
       </div>
     );
   }
 
-  const needsPayment = !paymentAccess.hasAccess;
-  const shouldShowPaymentOverlay = showPaymentOverlay || (!isAttending && needsPayment);
-
-  const handleInteractionAttempt = () => {
-    if (needsPayment) {
-      setShowPaymentOverlay(true);
-    }
-  };
-
   return (
     <div className="min-h-screen gradient-bg">
-      <Header />
       <div className="container mx-auto px-4 py-8">
-        <div className="max-w-6xl mx-auto space-y-6">
-          {/* Payment Success Message */}
-          {showPaymentSuccess && (
-            <Card className="gradient-card border-0 shadow-lg border-green-200">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3 text-green-700">
-                  <CheckCircle className="h-6 w-6" />
-                  <div>
-                    <h3 className="font-semibold">Payment Successful!</h3>
-                    <p className="text-sm">You now have access to all event features.</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Event Header */}
-          <Card className="gradient-card border-0 shadow-lg relative z-10">
+        {/* Header */}
+        <div className="mb-8">
+          <Button 
+            variant="ghost" 
+            onClick={() => navigate('/events')}
+            className="mb-4 hover:bg-white/20"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Events
+          </Button>
+          
+          <Card className="gradient-card border-0 shadow-lg">
             <CardHeader>
-              <div className="flex justify-between items-start flex-col sm:flex-row">
-                <div className="flex-1">
-                  <CardTitle className="text-3xl">{event.title}</CardTitle>
-                  {event.description && (
-                    <CardDescription className="text-lg mt-2">
-                      {event.description}
-                    </CardDescription>
-                  )}
-                  <div className="flex sm:items-center gap-4 my-4 text-muted-foreground flex-col sm:flex-row">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-5 w-5" />
-                      {formatDate(event.start_date)}
+              <CardTitle className="text-2xl">{event.title}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5 text-blue-500" />
+                  <div>
+                    <div className="font-medium">
+                      {format(new Date(event.start_date), 'MMM d, yyyy')}
                     </div>
-                    {event.location && (
-                      <div className="flex items-center gap-2">
-                        <MapPin className="h-5 w-5" />
-                        {event.location}
-                      </div>
-                    )}
+                    <div className="text-sm text-muted-foreground">
+                      {format(new Date(event.start_date), 'h:mm a')}
+                      {event.end_date && ` - ${format(new Date(event.end_date), 'h:mm a')}`}
+                    </div>
                   </div>
                 </div>
+                
+                {event.location && (
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-5 w-5 text-green-500" />
+                    <div>
+                      <div className="font-medium">Location</div>
+                      <div className="text-sm text-muted-foreground">{event.location}</div>
+                    </div>
+                  </div>
+                )}
+                
                 <div className="flex items-center gap-2">
-                  {paymentAccess.hasAccess && (
-                    <Badge variant="default" className="bg-green-500">
-                      Event Access
-                    </Badge>
-                  )}
-                  {isAttending && !paymentAccess.hasAccess && (
-                    <Badge variant="secondary">
-                      Attending
-                    </Badge>
-                  )}
+                  <Users className="h-5 w-5 text-purple-500" />
+                  <div>
+                    <div className="font-medium">Event</div>
+                    <div className="text-sm text-muted-foreground">Christian Singles</div>
+                  </div>
                 </div>
               </div>
-            </CardHeader>
-
-            {/* Payment Overlay - only show if not attending or forced to show */}
-            {shouldShowPaymentOverlay && (
-              <PaymentOverlay 
-                eventId={event.id}
-                eventTitle={event.title}
-                isPostEvent={false}
-                onPaymentSuccess={() => {
-                  setPaymentAccess({ hasAccess: true });
-                  setIsAttending(true);
-                  setShowPaymentOverlay(false);
-                }}
-              />
-            )}
+              
+              {event.description && (
+                <div className="mt-4 p-4 bg-white/10 rounded-lg">
+                  <p className="text-sm">{event.description}</p>
+                </div>
+              )}
+            </CardContent>
           </Card>
-
-          {/* Event Content - Show if attending, blur if payment needed and interaction attempted */}
-          <div className={showPaymentOverlay ? 'blur-md pointer-events-none overflow-hidden' : ''}>
-            
-            {/* Event Matches */}
-            <EventMatches 
-              eventId={event.id} 
-              onInteractionAttempt={needsPayment ? handleInteractionAttempt : undefined}
-            />
-
-            {/* Event Tabs */}
-            <Card className="gradient-card border-0 shadow-lg relative">
-              <CardContent className="p-6">
-                <Tabs defaultValue="messages" className="w-full">
-                  <TabsContent value="messages" className="mt-6">
-                    <DirectMessages 
-                      eventId={event.id} 
-                      onInteractionAttempt={needsPayment ? handleInteractionAttempt : undefined}
-                    />
-                  </TabsContent>
-                </Tabs>
-              </CardContent>
-            </Card>
-          </div>
         </div>
+
+        <div className="max-w-4xl mx-auto">
+          <Tabs defaultValue="matches" className="w-full">
+            <TabsList className="grid w-full grid-cols-5 mb-6">
+              <TabsTrigger value="matches">Matches</TabsTrigger>
+              <TabsTrigger value="messages">Messages</TabsTrigger>
+              <TabsTrigger value="attendees">Attendees</TabsTrigger>
+              <TabsTrigger value="chat">Chat</TabsTrigger>
+              <TabsTrigger value="profile-views">Profile Views</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="matches">
+              <EventMatches 
+                eventId={eventId!} 
+                onInteractionAttempt={hasAccess ? undefined : handleInteractionAttempt}
+              />
+            </TabsContent>
+
+            <TabsContent value="messages">
+              <DirectMessages 
+                eventId={eventId!}
+                onInteractionAttempt={hasAccess ? undefined : handleInteractionAttempt}
+              />
+            </TabsContent>
+
+            <TabsContent value="attendees">
+              <EventAttendees 
+                eventId={eventId!}
+                onInteractionAttempt={hasAccess ? undefined : handleInteractionAttempt}
+              />
+            </TabsContent>
+
+            <TabsContent value="chat">
+              <EventChat 
+                eventId={eventId!}
+                onInteractionAttempt={hasAccess ? undefined : handleInteractionAttempt}
+              />
+            </TabsContent>
+
+            <TabsContent value="profile-views">
+              <ProfileViewsList eventId={eventId!} />
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        {/* Payment Overlay */}
+        {showPaymentOverlay && (
+          <PaymentOverlay
+            eventId={eventId!}
+            onClose={() => setShowPaymentOverlay(false)}
+            onPaymentSuccess={handlePaymentSuccess}
+          />
+        )}
       </div>
     </div>
   );

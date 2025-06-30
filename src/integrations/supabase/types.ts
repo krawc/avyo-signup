@@ -387,8 +387,33 @@ export type Database = {
           },
         ]
       }
+      profile_views: {
+        Row: {
+          event_id: string
+          id: string
+          viewed_at: string
+          viewed_user_id: string
+          viewer_id: string
+        }
+        Insert: {
+          event_id: string
+          id?: string
+          viewed_at?: string
+          viewed_user_id: string
+          viewer_id: string
+        }
+        Update: {
+          event_id?: string
+          id?: string
+          viewed_at?: string
+          viewed_user_id?: string
+          viewer_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
+          age_range: string | null
           church_name: string | null
           city: string | null
           created_at: string
@@ -409,6 +434,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          age_range?: string | null
           church_name?: string | null
           city?: string | null
           created_at?: string
@@ -429,6 +455,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          age_range?: string | null
           church_name?: string | null
           city?: string | null
           created_at?: string
@@ -447,6 +474,30 @@ export type Database = {
           profile_pictures?: string[] | null
           state?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      terms_acceptance: {
+        Row: {
+          accepted: boolean
+          accepted_at: string
+          id: string
+          terms_type: string
+          user_id: string
+        }
+        Insert: {
+          accepted?: boolean
+          accepted_at?: string
+          id?: string
+          terms_type: string
+          user_id: string
+        }
+        Update: {
+          accepted?: boolean
+          accepted_at?: string
+          id?: string
+          terms_type?: string
+          user_id?: string
         }
         Relationships: []
       }

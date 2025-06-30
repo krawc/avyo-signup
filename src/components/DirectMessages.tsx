@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -7,7 +6,9 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { MessageCircle, Send, User } from 'lucide-react';
+import { MessageCircle, Send, User, MapPin } from 'lucide-react';
+import TermsAndConditions from './TermsAndConditions';
+import { useTermsAcceptance } from '@/hooks/useTermsAcceptance';
 
 interface Connection {
   id: string;
@@ -42,6 +43,11 @@ const DirectMessages = ({ eventId, onInteractionAttempt }: DirectMessagesProps) 
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
+  const [showTerms, setShowTerms] = useState(false);
+  const [showLocationTerms, setShowLocationTerms] = useState(false);
+  
+  const { hasAccepted: hasAcceptedMessaging, loading: messagingTermsLoading, markAsAccepted: markMessagingAccepted } = useTermsAcceptance('messaging');
+  const { hasAccepted: hasAcceptedLocation, loading: locationTermsLoading, markAsAccepted: markLocationAccepted } = useTermsAcceptance('location_sharing');
 
   useEffect(() => {
     if (user) {
@@ -162,9 +168,70 @@ const DirectMessages = ({ eventId, onInteractionAttempt }: DirectMessagesProps) 
     }
   };
 
+  const handleMessagingAccess = () => {
+    if (hasAccepted === false) {
+      setShowTerms(true);
+    }
+  };
+
+  const handleLocationShare = () => {
+    if (hasAcceptedLocation === false) {
+      setShowLocationTerms(true);
+    } else {
+      shareLocation();
+    }
+  };
+
+  const shareLocation = async () => {
+    if (!selectedConnection || !user) return;
+
+    try {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(async (position) => {
+          const { latitude, longitude } = position.coords;
+          
+          // Share location for 1 hour
+          const expiresAt = new Date();
+          expiresAt.setHours(expiresAt.getHours() + 1);
+
+          const { error } = await supabase
+            .from('location_shares')
+            .insert({
+              connection_id: selectedConnection.id,
+              user_id: user.id,
+              latitude,
+              longitude,
+              expires_at: expiresAt.toISOString()
+            });
+
+          if (error) throw error;
+          
+          // Also send a message about location sharing
+          await supabase
+            .from('direct_messages')
+            .insert({
+              connection_id: selectedConnection.id,
+              sender_id: user.id,
+              message: '📍 I shared my location with you for the next hour.'
+            });
+
+        }, (error) => {
+          console.error('Error getting location:', error);
+        });
+      }
+    } catch (error) {
+      console.error('Error sharing location:', error);
+    }
+  };
+
   const sendMessage = async () => {
     if (onInteractionAttempt) {
       onInteractionAttempt();
+      return;
+    }
+
+    if (hasAcceptedMessaging === false) {
+      setShowTerms(true);
       return;
     }
 
@@ -195,7 +262,7 @@ const DirectMessages = ({ eventId, onInteractionAttempt }: DirectMessagesProps) 
     return profile.first_name || 'Anonymous User';
   };
 
-  if (loading) {
+  if (loading || messagingTermsLoading) {
     return (
       <div className="text-center py-4">
         <div className="animate-pulse">Loading messages...</div>
@@ -203,113 +270,172 @@ const DirectMessages = ({ eventId, onInteractionAttempt }: DirectMessagesProps) 
     );
   }
 
+  const showBlur = hasAcceptedMessaging === false;
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 h-96">
-      {/* Connections List */}
-      <Card className="md:col-span-1">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <MessageCircle className="h-5 w-5" />
-            Messages
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <ScrollArea className="h-64">
-            {connections.length === 0 ? (
-              <div className="p-4 text-center text-muted-foreground">
-                No connections yet
-              </div>
-            ) : (
-              connections.map((connection) => (
-                <div
-                  key={connection.id}
-                  className={`p-4 border-b cursor-pointer hover:bg-gray-50 ${
-                    selectedConnection?.id === connection.id ? 'bg-blue-50' : ''
-                  }`}
-                  onClick={() => setSelectedConnection(connection)}
-                >
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-10 w-10">
+    <>
+      <div className={`relative ${showBlur ? 'blur-sm pointer-events-none' : ''}`}>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 h-96">
+          {/* Connections List */}
+          <Card className="md:col-span-1">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MessageCircle className="h-5 w-5" />
+                Messages
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <ScrollArea className="h-64">
+                {connections.length === 0 ? (
+                  <div className="p-4 text-center text-muted-foreground">
+                    No connections yet
+                  </div>
+                ) : (
+                  connections.map((connection) => (
+                    <div
+                      key={connection.id}
+                      className={`p-4 border-b cursor-pointer hover:bg-gray-50 ${
+                        selectedConnection?.id === connection.id ? 'bg-blue-50' : ''
+                      }`}
+                      onClick={() => setSelectedConnection(connection)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage 
+                            src={connection.profile?.profile_picture_urls?.[0] || ''} 
+                            alt={getDisplayName(connection.profile)} 
+                          />
+                          <AvatarFallback>
+                            <User className="h-5 w-5" />
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium truncate">
+                            {getDisplayName(connection.profile)}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </ScrollArea>
+            </CardContent>
+          </Card>
+
+          {/* Messages */}
+          <Card className="md:col-span-2">
+            <CardContent className="p-0 h-full flex flex-col">
+              {selectedConnection ? (
+                <>
+                  {/* Messages Header */}
+                  <div className="p-4 border-b flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage 
+                          src={selectedConnection.profile?.profile_picture_urls?.[0] || ''} 
+                          alt={getDisplayName(selectedConnection.profile)} 
+                        />
+                        <AvatarFallback>
+                          <User className="h-4 w-4" />
+                        </AvatarFallback>
+                      </Avatar>
+                      <h3 className="font-semibold">
+                        {getDisplayName(selectedConnection.profile)}
+                      </h3>
+                    </div>
+                    <Avatar className="h-8 w-8">
                       <AvatarImage 
-                        src={connection.profile?.profile_picture_urls?.[0] || ''} 
-                        alt={getDisplayName(connection.profile)} 
+                        src={selectedConnection.profile?.profile_picture_urls?.[0] || ''} 
+                        alt={getDisplayName(selectedConnection.profile)} 
                       />
                       <AvatarFallback>
-                        <User className="h-5 w-5" />
+                        <User className="h-4 w-4" />
                       </AvatarFallback>
                     </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium truncate">
-                        {getDisplayName(connection.profile)}
-                      </div>
+                  </div>
+
+                  {/* Messages List */}
+                  <ScrollArea className="flex-1 p-4">
+                    <div className="space-y-4">
+                      {messages.map((message) => (
+                        <div
+                          key={message.id}
+                          className={`flex ${
+                            message.sender_id === user?.id ? 'justify-end' : 'justify-start'
+                          }`}
+                        >
+                          <div
+                            className={`max-w-xs px-4 py-2 rounded-lg ${
+                              message.sender_id === user?.id
+                                ? 'bg-blue-500 text-white'
+                                : 'bg-gray-200 text-gray-900'
+                            }`}
+                          >
+                            {message.message}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+
+                  {/* Message Input */}
+                  <div className="p-4 border-t">
+                    <div className="flex gap-2">
+                      <Input
+                        value={newMessage}
+                        onChange={(e) => setNewMessage(e.target.value)}
+                        placeholder="Type a message..."
+                        onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+                      />
+                      <Button onClick={handleLocationShare} size="sm" variant="outline">
+                        <MapPin className="h-4 w-4" />
+                      </Button>
+                      <Button onClick={sendMessage} size="sm">
+                        <Send className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
+                </>
+              ) : (
+                <div className="flex-1 flex items-center justify-center text-muted-foreground">
+                  Select a conversation to start messaging
                 </div>
-              ))
-            )}
-          </ScrollArea>
-        </CardContent>
-      </Card>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
 
-      {/* Messages */}
-      <Card className="md:col-span-2">
-        <CardContent className="p-0 h-full flex flex-col">
-          {selectedConnection ? (
-            <>
-              {/* Messages Header */}
-              <div className="p-4 border-b">
-                <h3 className="font-semibold">
-                  {getDisplayName(selectedConnection.profile)}
-                </h3>
-              </div>
+      {/* Terms and Conditions Overlays */}
+      {showBlur && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/20 z-10">
+          <Button onClick={handleMessagingAccess} className="bg-primary hover:bg-primary/90">
+            Read Terms and Conditions
+          </Button>
+        </div>
+      )}
 
-              {/* Messages List */}
-              <ScrollArea className="flex-1 p-4">
-                <div className="space-y-4">
-                  {messages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={`flex ${
-                        message.sender_id === user?.id ? 'justify-end' : 'justify-start'
-                      }`}
-                    >
-                      <div
-                        className={`max-w-xs px-4 py-2 rounded-lg ${
-                          message.sender_id === user?.id
-                            ? 'bg-blue-500 text-white'
-                            : 'bg-gray-200 text-gray-900'
-                        }`}
-                      >
-                        {message.message}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </ScrollArea>
+      <TermsAndConditions
+        isOpen={showTerms}
+        onClose={() => setShowTerms(false)}
+        onAccept={() => {
+          markMessagingAccepted();
+          setShowTerms(false);
+        }}
+        termsType="messaging"
+      />
 
-              {/* Message Input */}
-              <div className="p-4 border-t">
-                <div className="flex gap-2">
-                  <Input
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    placeholder="Type a message..."
-                    onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-                  />
-                  <Button onClick={sendMessage} size="sm">
-                    <Send className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </>
-          ) : (
-            <div className="flex-1 flex items-center justify-center text-muted-foreground">
-              Select a conversation to start messaging
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+      <TermsAndConditions
+        isOpen={showLocationTerms}
+        onClose={() => setShowLocationTerms(false)}
+        onAccept={() => {
+          markLocationAccepted();
+          setShowLocationTerms(false);
+          shareLocation();
+        }}
+        termsType="location_sharing"
+      />
+    </>
   );
 };
 
