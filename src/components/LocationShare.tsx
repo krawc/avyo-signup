@@ -34,6 +34,8 @@ const LocationShare = ({ connectionId }: LocationShareProps) => {
   const [sharing, setSharing] = useState(false);
   const [userLocation, setUserLocation] = useState<LocationShare | null>(null);
 
+  console.log(locations)
+
   useEffect(() => {
     fetchLocations();
     

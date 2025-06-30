@@ -165,10 +165,10 @@ const EventDetails = () => {
 
         <div className="max-w-4xl mx-auto">
           <Tabs defaultValue="matches" className="w-full">
-            <TabsList className="grid w-full grid-cols-4 mb-6 overflow-x-auto">
+            <TabsList className="grid w-full grid-cols-3 mb-6 overflow-x-auto">
               <TabsTrigger value="matches" className="text-xs md:text-sm">Matches</TabsTrigger>
               <TabsTrigger value="messages" className="text-xs md:text-sm">Messages</TabsTrigger>
-              <TabsTrigger value="attendees" className="text-xs md:text-sm">Attendees</TabsTrigger>
+              {/* <TabsTrigger value="attendees" className="text-xs md:text-sm">Attendees</TabsTrigger> */}
               <TabsTrigger value="profile-views" className="text-xs md:text-sm">Profile Views</TabsTrigger>
             </TabsList>
 
@@ -186,12 +186,12 @@ const EventDetails = () => {
               />
             </TabsContent>
 
-            <TabsContent value="attendees">
+            {/* <TabsContent value="attendees">
               <EventAttendees 
                 eventId={eventId!}
                 onInteractionAttempt={hasAccess ? undefined : handleInteractionAttempt}
               />
-            </TabsContent>
+            </TabsContent> */}
 
             <TabsContent value="profile-views">
               <ProfileViewsList eventId={eventId!} />

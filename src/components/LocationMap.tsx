@@ -34,7 +34,7 @@ const LocationMap = ({ locations, children }: LocationMapProps) => {
   const [mapboxToken, setMapboxToken] = useState('pk.eyJ1Ijoia3Jhd2MiLCJhIjoiY2xtdWp3ZzViMGpjeTJrb2NtaHVuZWl1biJ9.xCUOYkJHjQ2oEWBzBqc66w');
   const [isMapReady, setIsMapReady] = useState(false);
   const [showTokenInput, setShowTokenInput] = useState(false);
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(true);
   const markers = useRef<mapboxgl.Marker[]>([]);
 
   useEffect(() => {
@@ -181,7 +181,7 @@ const LocationMap = ({ locations, children }: LocationMapProps) => {
   }, [dialogOpen, mapContainer.current]);
 
   return (
-    <Dialog onOpenChange={(open) => setDialogOpen(open)}>
+    <Dialog open={dialogOpen} onOpenChange={(open) => setDialogOpen(open)}>
       <DialogTrigger asChild>
         {children}
       </DialogTrigger>

@@ -302,6 +302,8 @@ const DirectMessages = ({ eventId, onInteractionAttempt }: DirectMessagesProps) 
   };
 
   const handleLocationClick = () => {
+    console.log(showLocationMap)
+    
     setShowLocationMap(true);
   };
 
@@ -515,13 +517,9 @@ const DirectMessages = ({ eventId, onInteractionAttempt }: DirectMessagesProps) 
         termsType="location_sharing"
       />
 
-      {/* Location Map */}
-      <LocationMap locations={activeLocations}>
-        <div />
-      </LocationMap>
-
       {showLocationMap && (
-        <LocationMap locations={activeLocations}>
+        <LocationMap
+         locations={activeLocations}>
           <div />
         </LocationMap>
       )}
