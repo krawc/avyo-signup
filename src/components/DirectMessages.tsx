@@ -169,7 +169,7 @@ const DirectMessages = ({ eventId, onInteractionAttempt }: DirectMessagesProps) 
   };
 
   const handleMessagingAccess = () => {
-    if (hasAccepted === false) {
+    if (hasAcceptedMessaging === false) {
       setShowTerms(true);
     }
   };

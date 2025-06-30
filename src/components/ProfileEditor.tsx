@@ -123,7 +123,7 @@ const ProfileEditor = ({ profile, onUpdate, onCancel }: ProfileEditorProps) => {
           const { data: storageData, error: storageError } = await supabase
             .storage
             .from('profile-pictures')
-            .upload(`public/${profile.id}/${file.name}-${Date.now()}`, file);
+            .upload(`public/${profile.id}/${file.name}`, file);
 
           if (storageError) {
             console.error('Upload error:', storageError.message);
@@ -132,11 +132,13 @@ const ProfileEditor = ({ profile, onUpdate, onCancel }: ProfileEditorProps) => {
 
           const url = supabase.storage
             .from('profile-pictures')
-            .getPublicUrl(`public/${profile.id}/${file.name}-${Date.now()}`).data.publicUrl;
+            .getPublicUrl(`public/${profile.id}/${file.name}`).data.publicUrl;
 
           uploadedUrls.push(url);
         }
       }
+
+      console.log(editedProfile)
 
       const { error } = await supabase
         .from('profiles')

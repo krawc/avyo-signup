@@ -1,17 +1,52 @@
-
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Church, User, LogOut, ScanQrCode } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { getSignedUrls } from '@/lib/utils';
 
 const Header = () => {
+
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const [profilePic, setProfilePic] = useState('');
 
   const handleSignOut = async () => {
     await signOut();
+  };
+
+  useEffect(() => {
+    if (user) {
+      fetchProfile();
+    }
+  }, [user]);
+  
+
+  const fetchProfile = async () => {
+    if (!user) return;
+  
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('profile_picture_urls')
+      .eq('id', user.id)
+      .single();
+  
+    if (error) {
+      console.error('Error fetching profile:', error);
+      return;
+    }
+
+    console.log(data)
+  
+    // If there are image URLs, generate signed versions
+    if (data && data.profile_picture_urls.length > 0) {
+      const signedUrls = await getSignedUrls(data.profile_picture_urls);
+      setProfilePic(signedUrls[0])
+    } else {
+    }
   };
 
   return (
@@ -25,9 +60,9 @@ const Header = () => {
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+                <Button variant="ghost" className="relative h-10 w-10 border-1 rounded-full">
                   <Avatar className="h-10 w-10">
-                    <AvatarImage src="" alt="Profile" />
+                    <AvatarImage className="" src={profilePic} alt="Profile" />
                     <AvatarFallback>
                       <User className="h-5 w-5" />
                     </AvatarFallback>
