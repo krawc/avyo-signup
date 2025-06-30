@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { MessageCircle, Send, User, MapPin } from 'lucide-react';
 import TermsAndConditions from './TermsAndConditions';
+import LocationMap from './LocationMap';
 import { useTermsAcceptance } from '@/hooks/useTermsAcceptance';
 
 interface Connection {
@@ -31,6 +32,21 @@ interface Message {
   created_at: string;
 }
 
+interface LocationShare {
+  id: string;
+  user_id: string;
+  latitude: number;
+  longitude: number;
+  expires_at: string;
+  created_at: string;
+  profiles: {
+    first_name: string | null;
+    last_name: string | null;
+    display_name: string | null;
+    profile_picture_urls: string[] | null;
+  } | null;
+}
+
 interface DirectMessagesProps {
   eventId: string;
   onInteractionAttempt?: () => void;
@@ -45,6 +61,8 @@ const DirectMessages = ({ eventId, onInteractionAttempt }: DirectMessagesProps) 
   const [loading, setLoading] = useState(true);
   const [showTerms, setShowTerms] = useState(false);
   const [showLocationTerms, setShowLocationTerms] = useState(false);
+  const [activeLocations, setActiveLocations] = useState<LocationShare[]>([]);
+  const [showLocationMap, setShowLocationMap] = useState(false);
   
   const { hasAccepted: hasAcceptedMessaging, loading: messagingTermsLoading, markAsAccepted: markMessagingAccepted } = useTermsAcceptance('messaging');
   const { hasAccepted: hasAcceptedLocation, loading: locationTermsLoading, markAsAccepted: markLocationAccepted } = useTermsAcceptance('location_sharing');
@@ -58,6 +76,7 @@ const DirectMessages = ({ eventId, onInteractionAttempt }: DirectMessagesProps) 
   useEffect(() => {
     if (selectedConnection) {
       loadMessages(selectedConnection.id);
+      loadActiveLocations();
       
       // Set up real-time subscription for messages
       const channel = supabase
@@ -98,7 +117,7 @@ const DirectMessages = ({ eventId, onInteractionAttempt }: DirectMessagesProps) 
           (payload) => {
             const newConnection = payload.new;
             if (newConnection.requester_id === user.id || newConnection.addressee_id === user.id) {
-              loadConnections(); // Reload connections to get the profile data
+              loadConnections();
             }
           }
         )
@@ -112,7 +131,7 @@ const DirectMessages = ({ eventId, onInteractionAttempt }: DirectMessagesProps) 
           (payload) => {
             const updatedConnection = payload.new;
             if (updatedConnection.requester_id === user.id || updatedConnection.addressee_id === user.id) {
-              loadConnections(); // Reload connections to get updated status
+              loadConnections();
             }
           }
         )
@@ -168,6 +187,27 @@ const DirectMessages = ({ eventId, onInteractionAttempt }: DirectMessagesProps) 
     }
   };
 
+  const loadActiveLocations = async () => {
+    if (!selectedConnection) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('location_shares')
+        .select(`
+          *,
+          profiles(first_name, last_name, display_name, profile_picture_urls)
+        `)
+        .eq('connection_id', selectedConnection.id)
+        .gt('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setActiveLocations(data || []);
+    } catch (error) {
+      console.error('Error loading active locations:', error);
+    }
+  };
+
   const handleMessagingAccess = () => {
     if (hasAcceptedMessaging === false) {
       setShowTerms(true);
@@ -190,7 +230,6 @@ const DirectMessages = ({ eventId, onInteractionAttempt }: DirectMessagesProps) 
         navigator.geolocation.getCurrentPosition(async (position) => {
           const { latitude, longitude } = position.coords;
           
-          // Share location for 1 hour
           const expiresAt = new Date();
           expiresAt.setHours(expiresAt.getHours() + 1);
 
@@ -206,7 +245,6 @@ const DirectMessages = ({ eventId, onInteractionAttempt }: DirectMessagesProps) 
 
           if (error) throw error;
           
-          // Also send a message about location sharing
           await supabase
             .from('direct_messages')
             .insert({
@@ -215,6 +253,7 @@ const DirectMessages = ({ eventId, onInteractionAttempt }: DirectMessagesProps) 
               message: '📍 I shared my location with you for the next hour.'
             });
 
+          loadActiveLocations();
         }, (error) => {
           console.error('Error getting location:', error);
         });
@@ -262,6 +301,58 @@ const DirectMessages = ({ eventId, onInteractionAttempt }: DirectMessagesProps) 
     return profile.first_name || 'Anonymous User';
   };
 
+  const handleLocationClick = () => {
+    setShowLocationMap(true);
+  };
+
+  const renderMessage = (message: Message) => {
+    const isLocationMessage = message.message.includes('📍');
+    
+    if (isLocationMessage) {
+      return (
+        <div
+          className={`flex ${
+            message.sender_id === user?.id ? 'justify-end' : 'justify-start'
+          }`}
+        >
+          <div
+            className={`max-w-xs rounded-lg cursor-pointer hover:opacity-80 ${
+              message.sender_id === user?.id
+                ? 'bg-blue-500 text-white'
+                : 'bg-gray-200 text-gray-900'
+            }`}
+            onClick={handleLocationClick}
+          >
+            <div className="p-2">
+              <div className="w-full h-20 bg-green-200 rounded mb-2 flex items-center justify-center">
+                <MapPin className="h-8 w-8 text-green-600" />
+              </div>
+              <p className="text-xs">{message.message}</p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div
+        className={`flex ${
+          message.sender_id === user?.id ? 'justify-end' : 'justify-start'
+        }`}
+      >
+        <div
+          className={`max-w-xs px-4 py-2 rounded-lg ${
+            message.sender_id === user?.id
+              ? 'bg-blue-500 text-white'
+              : 'bg-gray-200 text-gray-900'
+          }`}
+        >
+          {message.message}
+        </div>
+      </div>
+    );
+  };
+
   if (loading || messagingTermsLoading) {
     return (
       <div className="text-center py-4">
@@ -279,15 +370,15 @@ const DirectMessages = ({ eventId, onInteractionAttempt }: DirectMessagesProps) 
           {/* Connections List */}
           <Card className="md:col-span-1">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <MessageCircle className="h-5 w-5" />
+              <CardTitle className="flex items-center gap-2 text-sm md:text-base">
+                <MessageCircle className="h-4 w-4 md:h-5 md:w-5" />
                 Messages
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               <ScrollArea className="h-64">
                 {connections.length === 0 ? (
-                  <div className="p-4 text-center text-muted-foreground">
+                  <div className="p-4 text-center text-muted-foreground text-sm">
                     No connections yet
                   </div>
                 ) : (
@@ -300,17 +391,17 @@ const DirectMessages = ({ eventId, onInteractionAttempt }: DirectMessagesProps) 
                       onClick={() => setSelectedConnection(connection)}
                     >
                       <div className="flex items-center gap-3">
-                        <Avatar className="h-10 w-10">
+                        <Avatar className="h-8 w-8 md:h-10 md:w-10">
                           <AvatarImage 
                             src={connection.profile?.profile_picture_urls?.[0] || ''} 
                             alt={getDisplayName(connection.profile)} 
                           />
                           <AvatarFallback>
-                            <User className="h-5 w-5" />
+                            <User className="h-4 w-4 md:h-5 md:w-5" />
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">
-                          <div className="font-medium truncate">
+                          <div className="font-medium truncate text-sm">
                             {getDisplayName(connection.profile)}
                           </div>
                         </div>
@@ -330,26 +421,26 @@ const DirectMessages = ({ eventId, onInteractionAttempt }: DirectMessagesProps) 
                   {/* Messages Header */}
                   <div className="p-4 border-b flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <Avatar className="h-8 w-8">
+                      <Avatar className="h-6 w-6 md:h-8 md:w-8">
                         <AvatarImage 
                           src={selectedConnection.profile?.profile_picture_urls?.[0] || ''} 
                           alt={getDisplayName(selectedConnection.profile)} 
                         />
                         <AvatarFallback>
-                          <User className="h-4 w-4" />
+                          <User className="h-3 w-3 md:h-4 md:w-4" />
                         </AvatarFallback>
                       </Avatar>
-                      <h3 className="font-semibold">
+                      <h3 className="font-semibold text-sm md:text-base">
                         {getDisplayName(selectedConnection.profile)}
                       </h3>
                     </div>
-                    <Avatar className="h-8 w-8">
+                    <Avatar className="h-6 w-6 md:h-8 md:w-8">
                       <AvatarImage 
                         src={selectedConnection.profile?.profile_picture_urls?.[0] || ''} 
                         alt={getDisplayName(selectedConnection.profile)} 
                       />
                       <AvatarFallback>
-                        <User className="h-4 w-4" />
+                        <User className="h-3 w-3 md:h-4 md:w-4" />
                       </AvatarFallback>
                     </Avatar>
                   </div>
@@ -358,21 +449,8 @@ const DirectMessages = ({ eventId, onInteractionAttempt }: DirectMessagesProps) 
                   <ScrollArea className="flex-1 p-4">
                     <div className="space-y-4">
                       {messages.map((message) => (
-                        <div
-                          key={message.id}
-                          className={`flex ${
-                            message.sender_id === user?.id ? 'justify-end' : 'justify-start'
-                          }`}
-                        >
-                          <div
-                            className={`max-w-xs px-4 py-2 rounded-lg ${
-                              message.sender_id === user?.id
-                                ? 'bg-blue-500 text-white'
-                                : 'bg-gray-200 text-gray-900'
-                            }`}
-                          >
-                            {message.message}
-                          </div>
+                        <div key={message.id}>
+                          {renderMessage(message)}
                         </div>
                       ))}
                     </div>
@@ -386,18 +464,19 @@ const DirectMessages = ({ eventId, onInteractionAttempt }: DirectMessagesProps) 
                         onChange={(e) => setNewMessage(e.target.value)}
                         placeholder="Type a message..."
                         onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+                        className="text-sm"
                       />
                       <Button onClick={handleLocationShare} size="sm" variant="outline">
-                        <MapPin className="h-4 w-4" />
+                        <MapPin className="h-3 w-3 md:h-4 md:w-4" />
                       </Button>
                       <Button onClick={sendMessage} size="sm">
-                        <Send className="h-4 w-4" />
+                        <Send className="h-3 w-3 md:h-4 md:w-4" />
                       </Button>
                     </div>
                   </div>
                 </>
               ) : (
-                <div className="flex-1 flex items-center justify-center text-muted-foreground">
+                <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
                   Select a conversation to start messaging
                 </div>
               )}
@@ -435,6 +514,17 @@ const DirectMessages = ({ eventId, onInteractionAttempt }: DirectMessagesProps) 
         }}
         termsType="location_sharing"
       />
+
+      {/* Location Map */}
+      <LocationMap locations={activeLocations}>
+        <div />
+      </LocationMap>
+
+      {showLocationMap && (
+        <LocationMap locations={activeLocations}>
+          <div />
+        </LocationMap>
+      )}
     </>
   );
 };

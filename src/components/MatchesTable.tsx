@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -31,9 +32,10 @@ interface MatchesTableProps {
   eventId: string;
   excludeUserIds: string[];
   onMatchResponse: (targetUserId: string, response: 'yes' | 'no') => void;
+  matches?: Match[]; // Optional prop to pass matches directly
 }
 
-const MatchesTable = ({ eventId, excludeUserIds, onMatchResponse }: MatchesTableProps) => {
+const MatchesTable = ({ eventId, excludeUserIds, onMatchResponse, matches: propMatches }: MatchesTableProps) => {
   const { user } = useAuth();
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,10 +43,13 @@ const MatchesTable = ({ eventId, excludeUserIds, onMatchResponse }: MatchesTable
   const [showProfilePopup, setShowProfilePopup] = useState(false);
 
   useEffect(() => {
-    if (user) {
+    if (propMatches) {
+      setMatches(propMatches);
+      setLoading(false);
+    } else if (user) {
       loadMatches();
     }
-  }, [eventId, user, excludeUserIds]);
+  }, [eventId, user, excludeUserIds, propMatches]);
 
   const loadMatches = async () => {
     if (!user) return;
@@ -60,7 +65,6 @@ const MatchesTable = ({ eventId, excludeUserIds, onMatchResponse }: MatchesTable
 
       if (error) throw error;
 
-      // Sign profile picture URLs
       const matchesWithSignedUrls = await Promise.all(
         (data || []).map(async (match: Match) => {
           const rawUrls: string[] = match.profile?.profile_picture_urls || [];
@@ -116,14 +120,13 @@ const MatchesTable = ({ eventId, excludeUserIds, onMatchResponse }: MatchesTable
         urls.map(async (url) => {
           if (!url) return '';
           
-          // Extract the file path from the full URL
           const urlParts = url.split('/');
           const fileName = urlParts[urlParts.length - 1];
           const bucketPath = `profile-pictures/${fileName}`;
           
           const { data } = await supabase.storage
             .from('profile-pictures')
-            .createSignedUrl(bucketPath, 3600); // 1 hour expiry
+            .createSignedUrl(bucketPath, 3600);
           
           return data?.signedUrl || '';
         })
@@ -132,7 +135,7 @@ const MatchesTable = ({ eventId, excludeUserIds, onMatchResponse }: MatchesTable
       return signedUrls;
     } catch (error) {
       console.error('Error creating signed URLs:', error);
-      return urls; // Return original URLs as fallback
+      return urls;
     }
   };
 
@@ -156,55 +159,57 @@ const MatchesTable = ({ eventId, excludeUserIds, onMatchResponse }: MatchesTable
     <>
       <div className="space-y-4">
         {matches.map((match) => (
-          <div key={match.user_id} className="flex items-center gap-4 p-4 rounded-lg border bg-card">
-            <Avatar className="h-16 w-16">
+          <div key={match.user_id} className="flex items-center gap-3 md:gap-4 p-3 md:p-4 rounded-lg border bg-card">
+            <Avatar className="h-12 w-12 md:h-16 md:w-16 flex-shrink-0">
               <AvatarImage 
                 src={match.profile?.profile_picture_urls?.[0] || ''} 
                 alt={getDisplayName(match.profile)} 
               />
               <AvatarFallback>
-                <User className="h-8 w-8" />
+                <User className="h-6 w-6 md:h-8 md:w-8" />
               </AvatarFallback>
             </Avatar>
             
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <h3 className="font-semibold truncate">
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                <h3 className="font-semibold truncate text-sm md:text-base">
                   {getDisplayName(match.profile)}
                 </h3>
                 <Badge variant="secondary" className="text-xs">
                   {match.compatibility_score}% match
                 </Badge>
               </div>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-xs md:text-sm text-muted-foreground">
                 {match.profile?.city && match.profile?.state 
                   ? `${match.profile.city}, ${match.profile.state}` 
                   : 'Location not specified'}
               </p>
             </div>
             
-            <div className="flex gap-2">
+            <div className="flex gap-1 md:gap-2 flex-shrink-0">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => handleViewProfile(match)}
+                className="px-2 md:px-3"
               >
-                <Eye className="h-4 w-4 mr-1" />
-                View
+                <Eye className="h-3 w-3 md:h-4 md:w-4 md:mr-1" />
+                <span className="hidden md:inline">View</span>
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => onMatchResponse(match.user_id, 'no')}
+                className="px-2 md:px-3"
               >
-                <X className="h-4 w-4" />
+                <X className="h-3 w-3 md:h-4 md:w-4" />
               </Button>
               <Button
                 size="sm"
-                className="bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600"
+                className="bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 px-2 md:px-3"
                 onClick={() => onMatchResponse(match.user_id, 'yes')}
               >
-                <Heart className="h-4 w-4" />
+                <Heart className="h-3 w-3 md:h-4 md:w-4" />
               </Button>
             </div>
           </div>

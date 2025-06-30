@@ -1,18 +1,18 @@
+
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Calendar, MapPin, Users, MessageCircle, Heart, Eye } from 'lucide-react';
+import { Calendar, MapPin, Users, MessageCircle, Eye } from 'lucide-react';
 import { format } from 'date-fns';
 import EventMatches from '@/components/EventMatches';
 import DirectMessages from '@/components/DirectMessages';
 import EventAttendees from '@/components/EventAttendees';
-import EventChat from '@/components/EventChat';
 import ProfileViewsList from '@/components/ProfileViewsList';
 import PaymentOverlay from '@/components/PaymentOverlay';
+import Header from '@/components/Header';
 
 interface Event {
   id: string;
@@ -28,7 +28,6 @@ interface Event {
 
 const EventDetails = () => {
   const { eventId } = useParams();
-  const navigate = useNavigate();
   const { user } = useAuth();
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
@@ -65,7 +64,6 @@ const EventDetails = () => {
     if (!eventId || !user) return;
 
     try {
-      // Check if user has paid for this event
       const { data: payment, error } = await supabase
         .from('event_payments')
         .select('*')
@@ -106,9 +104,6 @@ const EventDetails = () => {
       <div className="min-h-screen gradient-bg flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold mb-4">Event not found</h2>
-          <Button onClick={() => navigate('/events')}>
-            Back to Events
-          </Button>
         </div>
       </div>
     );
@@ -116,21 +111,14 @@ const EventDetails = () => {
 
   return (
     <div className="min-h-screen gradient-bg">
+      <Header />
+      
       <div className="container mx-auto px-4 py-8">
-        {/* Header */}
+        {/* Event Info Card */}
         <div className="mb-8">
-          <Button 
-            variant="ghost" 
-            onClick={() => navigate('/events')}
-            className="mb-4 hover:bg-white/20"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Events
-          </Button>
-          
           <Card className="gradient-card border-0 shadow-lg">
             <CardHeader>
-              <CardTitle className="text-2xl">{event.title}</CardTitle>
+              <CardTitle className="text-xl md:text-2xl">{event.title}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -177,12 +165,11 @@ const EventDetails = () => {
 
         <div className="max-w-4xl mx-auto">
           <Tabs defaultValue="matches" className="w-full">
-            <TabsList className="grid w-full grid-cols-5 mb-6">
-              <TabsTrigger value="matches">Matches</TabsTrigger>
-              <TabsTrigger value="messages">Messages</TabsTrigger>
-              <TabsTrigger value="attendees">Attendees</TabsTrigger>
-              <TabsTrigger value="chat">Chat</TabsTrigger>
-              <TabsTrigger value="profile-views">Profile Views</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-4 mb-6 overflow-x-auto">
+              <TabsTrigger value="matches" className="text-xs md:text-sm">Matches</TabsTrigger>
+              <TabsTrigger value="messages" className="text-xs md:text-sm">Messages</TabsTrigger>
+              <TabsTrigger value="attendees" className="text-xs md:text-sm">Attendees</TabsTrigger>
+              <TabsTrigger value="profile-views" className="text-xs md:text-sm">Profile Views</TabsTrigger>
             </TabsList>
 
             <TabsContent value="matches">
@@ -201,13 +188,6 @@ const EventDetails = () => {
 
             <TabsContent value="attendees">
               <EventAttendees 
-                eventId={eventId!}
-                onInteractionAttempt={hasAccess ? undefined : handleInteractionAttempt}
-              />
-            </TabsContent>
-
-            <TabsContent value="chat">
-              <EventChat 
                 eventId={eventId!}
                 onInteractionAttempt={hasAccess ? undefined : handleInteractionAttempt}
               />

@@ -3,9 +3,12 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Heart, Users } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Heart, Users, Eye, Clock, CheckCircle } from 'lucide-react';
 import MatchesTable from './MatchesTable';
 import MatchOverlay from './MatchOverlay';
+import AllMatchesPopup from './AllMatchesPopup';
+import PreviousMatches from './PreviousMatches';
 
 interface Match {
   user_id: string;
@@ -27,6 +30,7 @@ const EventMatches = ({ eventId, onInteractionAttempt }: EventMatchesProps) => {
   const { user } = useAuth();
   const [topMatches, setTopMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showAllMatches, setShowAllMatches] = useState(false);
   const [matchOverlay, setMatchOverlay] = useState<{
     show: boolean;
     match: Match | null;
@@ -44,7 +48,6 @@ const EventMatches = ({ eventId, onInteractionAttempt }: EventMatchesProps) => {
     try {
       console.log('Generating matches for user:', user.id, 'in event:', eventId);
       
-      // First generate matches for this user
       const { error: generateError } = await supabase.functions.invoke('generate-matches', {
         body: { eventId, userId: user.id }
       });
@@ -53,14 +56,12 @@ const EventMatches = ({ eventId, onInteractionAttempt }: EventMatchesProps) => {
         console.error('Error generating matches:', generateError);
       }
 
-      // Then load the top matches
       const { data, error } = await supabase.functions.invoke('get-filtered-matches', {
         body: { eventId, limit: 5 }
       });
 
       if (error) throw error;
 
-      // Sign profile picture URLs
       const matchesWithSignedUrls = await Promise.all(
         (data || []).map(async (match: Match) => {
           const rawUrls: string[] = match.profile?.profile_picture_urls || [];
@@ -102,7 +103,6 @@ const EventMatches = ({ eventId, onInteractionAttempt }: EventMatchesProps) => {
 
       if (error) throw error;
 
-      // Check if it's a mutual match
       if (data.isMutualMatch && response === 'yes') {
         const match = topMatches.find(m => m.user_id === targetUserId);
         if (match) {
@@ -111,7 +111,6 @@ const EventMatches = ({ eventId, onInteractionAttempt }: EventMatchesProps) => {
         }
       }
 
-      // Remove the match from top matches (it will be handled by MatchesTable)
       setTopMatches(prev => prev.filter(match => match.user_id !== targetUserId));
     } catch (error) {
       console.error('Error handling match response:', error);
@@ -124,8 +123,6 @@ const EventMatches = ({ eventId, onInteractionAttempt }: EventMatchesProps) => {
 
   const handleGoToDM = () => {
     closeMatchOverlay();
-    // The DirectMessages component will automatically update via real-time subscription
-    // when the new connection is created
   };
 
   if (loading) {
@@ -141,20 +138,31 @@ const EventMatches = ({ eventId, onInteractionAttempt }: EventMatchesProps) => {
   return (
     <>
       <div className="space-y-6">
-        {/* Top 5 Matches */}
+        {/* Your Potential Matches */}
         <Card className="gradient-card border-0 shadow-lg">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Heart className="h-5 w-5 text-pink-500" />
-              Your Top Matches
-            </CardTitle>
+            <div className="flex justify-between items-center">
+              <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+                <Heart className="h-4 w-4 md:h-5 md:w-5 text-pink-500" />
+                Your Potential Matches
+              </CardTitle>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setShowAllMatches(true)}
+                className="text-xs md:text-sm"
+              >
+                <Eye className="h-3 w-3 md:h-4 md:w-4 mr-1" />
+                View All Matches
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             {topMatches.length === 0 ? (
               <div className="text-center py-8">
-                <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                <h3 className="text-lg font-semibold mb-2">No matches yet</h3>
-                <p className="text-muted-foreground">Check back soon for potential connections!</p>
+                <Users className="h-8 w-8 md:h-12 md:w-12 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="text-base md:text-lg font-semibold mb-2">No matches yet</h3>
+                <p className="text-muted-foreground text-sm">Check back soon for potential connections!</p>
               </div>
             ) : (
               <MatchesTable 
@@ -166,19 +174,18 @@ const EventMatches = ({ eventId, onInteractionAttempt }: EventMatchesProps) => {
           </CardContent>
         </Card>
 
-        {/* All Other Matches */}
+        {/* Previous Matches */}
         <Card className="gradient-card border-0 shadow-lg">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-blue-500" />
-              More Potential Matches
+            <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+              <Clock className="h-4 w-4 md:h-5 md:w-5 text-blue-500" />
+              Previous Matches
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <MatchesTable 
+            <PreviousMatches 
               eventId={eventId}
-              excludeUserIds={topMatches.map(match => match.user_id)}
-              onMatchResponse={handleMatchResponse}
+              onInteractionAttempt={onInteractionAttempt}
             />
           </CardContent>
         </Card>
@@ -192,11 +199,19 @@ const EventMatches = ({ eventId, onInteractionAttempt }: EventMatchesProps) => {
           onGoToDM={handleGoToDM}
         />
       )}
+
+      {/* All Matches Popup */}
+      <AllMatchesPopup
+        isOpen={showAllMatches}
+        onClose={() => setShowAllMatches(false)}
+        eventId={eventId}
+        onMatchResponse={handleMatchResponse}
+        onInteractionAttempt={onInteractionAttempt}
+      />
     </>
   );
 };
 
-// Helper function to get signed URLs - keeping it here since it's used in this component
 const getSignedUrls = async (urls: string[]): Promise<string[]> => {
   if (!urls || urls.length === 0) return [];
   
@@ -205,14 +220,13 @@ const getSignedUrls = async (urls: string[]): Promise<string[]> => {
       urls.map(async (url) => {
         if (!url) return '';
         
-        // Extract the file path from the full URL
         const urlParts = url.split('/');
         const fileName = urlParts[urlParts.length - 1];
         const bucketPath = `profile-pictures/${fileName}`;
         
         const { data } = await supabase.storage
           .from('profile-pictures')
-          .createSignedUrl(bucketPath, 3600); // 1 hour expiry
+          .createSignedUrl(bucketPath, 3600);
         
         return data?.signedUrl || '';
       })
@@ -221,7 +235,7 @@ const getSignedUrls = async (urls: string[]): Promise<string[]> => {
     return signedUrls;
   } catch (error) {
     console.error('Error creating signed URLs:', error);
-    return urls; // Return original URLs as fallback
+    return urls;
   }
 };
 

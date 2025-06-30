@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -33,15 +34,22 @@ interface ProfileViewPopupProps {
   onClose: () => void;
   onMatchResponse: (targetUserId: string, response: 'yes' | 'no') => void;
   eventId: string;
+  readOnly?: boolean;
 }
 
-const ProfileViewPopup = ({ match, isOpen, onClose, onMatchResponse, eventId }: ProfileViewPopupProps) => {
+const ProfileViewPopup = ({ 
+  match, 
+  isOpen, 
+  onClose, 
+  onMatchResponse, 
+  eventId, 
+  readOnly = false 
+}: ProfileViewPopupProps) => {
   const { user } = useAuth();
 
   useEffect(() => {
-    // Track profile view when popup opens
     const trackProfileView = async () => {
-      if (match && user && isOpen) {
+      if (match && user && isOpen && !readOnly) {
         try {
           await supabase
             .from('profile_views')
@@ -58,7 +66,7 @@ const ProfileViewPopup = ({ match, isOpen, onClose, onMatchResponse, eventId }: 
     };
 
     trackProfileView();
-  }, [match, user, isOpen, eventId]);
+  }, [match, user, isOpen, eventId, readOnly]);
 
   if (!match) return null;
 
@@ -98,7 +106,7 @@ const ProfileViewPopup = ({ match, isOpen, onClose, onMatchResponse, eventId }: 
           {/* Profile Information */}
           <div className="space-y-4">
             <div className="text-center">
-              <h2 className="text-2xl font-bold">{getDisplayName()}</h2>
+              <h2 className="text-xl md:text-2xl font-bold">{getDisplayName()}</h2>
               <div className="flex items-center justify-center gap-2 mt-1">
                 <Badge variant="secondary" className="flex items-center gap-1">
                   <Calendar className="h-3 w-3" />
@@ -110,42 +118,42 @@ const ProfileViewPopup = ({ match, isOpen, onClose, onMatchResponse, eventId }: 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {match.profile?.city && match.profile?.state && (
                 <div className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-muted-foreground" />
+                  <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                   <span className="text-sm">{match.profile.city}, {match.profile.state}</span>
                 </div>
               )}
               
               {match.profile?.gender && (
                 <div className="flex items-center gap-2">
-                  <Users className="h-4 w-4 text-muted-foreground" />
+                  <Users className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                   <span className="text-sm capitalize">{match.profile.gender}</span>
                 </div>
               )}
 
               {match.profile?.church_name && (
                 <div className="flex items-center gap-2">
-                  <Church className="h-4 w-4 text-muted-foreground" />
+                  <Church className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                   <span className="text-sm">{match.profile.church_name}</span>
                 </div>
               )}
 
               {match.profile?.marital_status && (
                 <div className="flex items-center gap-2">
-                  <User className="h-4 w-4 text-muted-foreground" />
+                  <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                   <span className="text-sm capitalize">{match.profile.marital_status}</span>
                 </div>
               )}
 
               {match.profile?.has_kids && (
                 <div className="flex items-center gap-2">
-                  <Users className="h-4 w-4 text-muted-foreground" />
+                  <Users className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                   <span className="text-sm">Has kids: {match.profile.has_kids}</span>
                 </div>
               )}
 
               {match.profile?.pastor_name && (
                 <div className="flex items-center gap-2">
-                  <User className="h-4 w-4 text-muted-foreground" />
+                  <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                   <span className="text-sm">Pastor: {match.profile.pastor_name}</span>
                 </div>
               )}
@@ -162,34 +170,38 @@ const ProfileViewPopup = ({ match, isOpen, onClose, onMatchResponse, eventId }: 
             )}
 
             {/* Compatibility Score */}
-            <div className="text-center">
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-pink-500/20 to-purple-500/20 rounded-full">
-                <Heart className="h-4 w-4 text-pink-500" />
-                <span className="text-sm font-medium">
-                  {match.compatibility_score}% Compatibility
-                </span>
+            {!readOnly && (
+              <div className="text-center">
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-pink-500/20 to-purple-500/20 rounded-full">
+                  <Heart className="h-4 w-4 text-pink-500" />
+                  <span className="text-sm font-medium">
+                    {match.compatibility_score}% Compatibility
+                  </span>
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-4 pt-4">
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={() => onMatchResponse(match.user_id, 'no')}
-            >
-              <X className="h-4 w-4 mr-2" />
-              Pass
-            </Button>
-            <Button
-              className="flex-1 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600"
-              onClick={() => onMatchResponse(match.user_id, 'yes')}
-            >
-              <Heart className="h-4 w-4 mr-2" />
-              Like
-            </Button>
-          </div>
+          {!readOnly && (
+            <div className="flex gap-4 pt-4">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => onMatchResponse(match.user_id, 'no')}
+              >
+                <X className="h-4 w-4 mr-2" />
+                Pass
+              </Button>
+              <Button
+                className="flex-1 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600"
+                onClick={() => onMatchResponse(match.user_id, 'yes')}
+              >
+                <Heart className="h-4 w-4 mr-2" />
+                Like
+              </Button>
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>
