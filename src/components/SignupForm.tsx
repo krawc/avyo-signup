@@ -300,7 +300,7 @@ const SignupForm = ({ onComplete, onBack }: SignupFormProps) => {
                     </div>
                   </div>
 
-                  <div className="space-y-2">
+                  {/* <div className="space-y-2">
                     <Label htmlFor="dateOfBirth">Date of Birth *</Label>
                     <Input
                       id="dateOfBirth"
@@ -309,7 +309,7 @@ const SignupForm = ({ onComplete, onBack }: SignupFormProps) => {
                       onChange={(e) => handleDateOfBirthChange(e.target.value)}
                       className="bg-white/50 border-white/20"
                     />
-                  </div>
+                  </div> */}
 
                   <div className="space-y-2">
                     <Label htmlFor="ageRange">Age Range *</Label>
