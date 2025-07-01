@@ -234,20 +234,22 @@ const DirectMessages = ({ eventId, onInteractionAttempt }: DirectMessagesProps) 
           expiresAt.setHours(expiresAt.getHours() + 1);
 
           const { error } = await supabase
-            .from('location_shares')
-            .insert({
-              connection_id: selectedConnection.id,
-              user_id: user.id,
-              latitude,
-              longitude,
-              expires_at: expiresAt.toISOString()
-            });
-
+          .from('location_shares')
+          .upsert({
+            connection_id: selectedConnection.id,
+            user_id: user.id,
+            latitude,
+            longitude,
+            expires_at: expiresAt.toISOString()
+          }, {
+            onConflict: ['user_id', 'connection_id'] // 🔑 specify the conflict key
+          });
+        
           if (error) throw error;
           
           await supabase
             .from('direct_messages')
-            .insert({
+            .upsert({
               connection_id: selectedConnection.id,
               sender_id: user.id,
               message: '📍 I shared my location with you for the next hour.'
@@ -302,7 +304,7 @@ const DirectMessages = ({ eventId, onInteractionAttempt }: DirectMessagesProps) 
   };
 
   const handleLocationClick = () => {
-    console.log(showLocationMap)
+    //console.log(showLocationMap)
     
     setShowLocationMap(true);
   };
@@ -517,12 +519,12 @@ const DirectMessages = ({ eventId, onInteractionAttempt }: DirectMessagesProps) 
         termsType="location_sharing"
       />
 
-      {showLocationMap && (
         <LocationMap
+         isOpen={showLocationMap}
+         onClose={() => setShowLocationMap(false)}
          locations={activeLocations}>
           <div />
         </LocationMap>
-      )}
     </>
   );
 };

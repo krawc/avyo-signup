@@ -24,17 +24,19 @@ interface LocationShare {
 }
 
 interface LocationMapProps {
+  isOpen: boolean,
+  onClose: () => void;
   locations: LocationShare[];
   children: React.ReactNode;
 }
 
-const LocationMap = ({ locations, children }: LocationMapProps) => {
+const LocationMap = ({ isOpen, onClose, locations, children }: LocationMapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const [mapboxToken, setMapboxToken] = useState('pk.eyJ1Ijoia3Jhd2MiLCJhIjoiY2xtdWp3ZzViMGpjeTJrb2NtaHVuZWl1biJ9.xCUOYkJHjQ2oEWBzBqc66w');
   const [isMapReady, setIsMapReady] = useState(false);
   const [showTokenInput, setShowTokenInput] = useState(false);
-  const [dialogOpen, setDialogOpen] = useState(true);
+  //const [dialogOpen, setDialogOpen] = useState(true);
   const markers = useRef<mapboxgl.Marker[]>([]);
 
   useEffect(() => {
@@ -175,13 +177,18 @@ const LocationMap = ({ locations, children }: LocationMapProps) => {
   }, [locations, isMapReady]);
 
   useEffect(() => {
-    if (dialogOpen && mapContainer.current) {
-      initializeMap();
+    if (isOpen) {
+      // Wait a tick to let the DOM paint the dialog
+      setTimeout(() => {
+        if (mapContainer.current) {
+          initializeMap();
+        }
+      }, 50); // 50ms is usually enough
     }
-  }, [dialogOpen, mapContainer.current]);
+  }, [isOpen]);
 
   return (
-    <Dialog open={dialogOpen} onOpenChange={(open) => setDialogOpen(open)}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogTrigger asChild>
         {children}
       </DialogTrigger>
