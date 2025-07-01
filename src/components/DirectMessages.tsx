@@ -1,27 +1,51 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { MessageCircle, Send, User, MapPin } from 'lucide-react';
-import TermsAndConditions from './TermsAndConditions';
-import LocationMap from './LocationMap';
-import { useTermsAcceptance } from '@/hooks/useTermsAcceptance';
+import { Button } from '@/components/ui/button';
+import { Calendar, MapPin, Users, MessageCircle, Eye, User } from 'lucide-react';
+import { format } from 'date-fns';
+import { Card } from '@/components/ui/card';
+import { getDisplayName } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
+import UserActionsDropdown from './UserActionsDropdown';
+
+interface DirectMessagesProps {
+  eventId: string;
+  onInteractionAttempt?: () => void;
+}
+
+interface Profile {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  display_name: string | null;
+  date_of_birth: string | null;
+  age_range: string | null;
+  gender: string | null;
+  phone_number: string | null;
+  city: string | null;
+  state: string | null;
+  church_name: string | null;
+  marital_status: string | null;
+  has_kids: string | null;
+  life_verse: string | null;
+  profile_picture_urls: string[] | null;
+}
 
 interface Connection {
   id: string;
   requester_id: string;
   addressee_id: string;
   status: string;
-  profile: {
-    first_name: string | null;
-    last_name: string | null;
-    display_name: string | null;
-    profile_picture_urls: string[] | null;
-  };
+  created_at: string;
+  updated_at: string;
+}
+
+interface ConnectionWithProfile extends Connection {
+  requester?: Profile;
+  addressee?: Profile;
 }
 
 interface Message {
@@ -32,500 +56,364 @@ interface Message {
   created_at: string;
 }
 
-interface LocationShare {
-  id: string;
-  user_id: string;
-  latitude: number;
-  longitude: number;
-  expires_at: string;
-  created_at: string;
-  profiles: {
-    first_name: string | null;
-    last_name: string | null;
-    display_name: string | null;
-    profile_picture_urls: string[] | null;
-  } | null;
-}
-
-interface DirectMessagesProps {
-  eventId: string;
-  onInteractionAttempt?: () => void;
-}
-
 const DirectMessages = ({ eventId, onInteractionAttempt }: DirectMessagesProps) => {
   const { user } = useAuth();
-  const [connections, setConnections] = useState<Connection[]>([]);
-  const [selectedConnection, setSelectedConnection] = useState<Connection | null>(null);
+  const { toast } = useToast();
+  const [connections, setConnections] = useState<ConnectionWithProfile[]>([]);
+  const [selectedConnection, setSelectedConnection] = useState<ConnectionWithProfile | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
-  const [showTerms, setShowTerms] = useState(false);
-  const [showLocationTerms, setShowLocationTerms] = useState(false);
-  const [activeLocations, setActiveLocations] = useState<LocationShare[]>([]);
-  const [showLocationMap, setShowLocationMap] = useState(false);
-  
-  const { hasAccepted: hasAcceptedMessaging, loading: messagingTermsLoading, markAsAccepted: markMessagingAccepted } = useTermsAcceptance('messaging');
-  const { hasAccepted: hasAcceptedLocation, loading: locationTermsLoading, markAsAccepted: markLocationAccepted } = useTermsAcceptance('location_sharing');
+  const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (user) {
-      loadConnections();
+      fetchConnections();
+      subscribeToPresence();
     }
-  }, [user, eventId]);
+  }, [user]);
 
   useEffect(() => {
     if (selectedConnection) {
-      loadMessages(selectedConnection.id);
-      loadActiveLocations();
-      
-      // Set up real-time subscription for messages
-      const channel = supabase
-        .channel('direct-messages')
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'direct_messages',
-            filter: `connection_id=eq.${selectedConnection.id}`
-          },
-          (payload) => {
-            const newMessage = payload.new as Message;
-            setMessages(prev => [...prev, newMessage]);
-          }
-        )
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
+      fetchMessages(selectedConnection.id);
     }
   }, [selectedConnection]);
 
   useEffect(() => {
-    // Set up real-time subscription for new connections
-    if (user) {
-      const channel = supabase
-        .channel('new-connections')
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'connections'
-          },
-          (payload) => {
-            const newConnection = payload.new;
-            if (newConnection.requester_id === user.id || newConnection.addressee_id === user.id) {
-              loadConnections();
-            }
-          }
-        )
-        .on(
-          'postgres_changes',
-          {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'connections'
-          },
-          (payload) => {
-            const updatedConnection = payload.new;
-            if (updatedConnection.requester_id === user.id || updatedConnection.addressee_id === user.id) {
-              loadConnections();
-            }
-          }
-        )
-        .subscribe();
+    // Scroll to bottom when messages change
+    scrollToBottom();
+  }, [messages]);
 
-      return () => {
-        supabase.removeChannel(channel);
-      };
-    }
-  }, [user]);
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }
 
-  const loadConnections = async () => {
+  const fetchConnections = async () => {
     if (!user) return;
 
     try {
-      const { data, error } = await supabase
+      const { data: connectionsData, error: connectionsError } = await supabase
         .from('connections')
         .select(`
-          *,
-          requester:profiles!connections_requester_id_fkey(first_name, last_name, display_name, profile_picture_urls),
-          addressee:profiles!connections_addressee_id_fkey(first_name, last_name, display_name, profile_picture_urls)
+          id,
+          requester_id,
+          addressee_id,
+          status,
+          created_at,
+          updated_at,
+          requester:profiles!connections_requester_id_fkey(
+            id,
+            first_name,
+            last_name,
+            display_name,
+            date_of_birth,
+            age_range,
+            gender,
+            phone_number,
+            city,
+            state,
+            church_name,
+            marital_status,
+            has_kids,
+            life_verse,
+            profile_picture_urls
+          ),
+          addressee:profiles!connections_addressee_id_fkey(
+            id,
+            first_name,
+            last_name,
+            display_name,
+            date_of_birth,
+            age_range,
+            gender,
+            phone_number,
+            city,
+            state,
+            church_name,
+            marital_status,
+            has_kids,
+            life_verse,
+            profile_picture_urls
+          )
         `)
         .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`)
         .eq('status', 'accepted');
 
-      if (error) throw error;
+      if (connectionsError) throw connectionsError;
 
-      const connectionsWithProfiles = data.map(conn => ({
-        ...conn,
-        profile: conn.requester_id === user.id ? conn.addressee : conn.requester
+      const connectionsWithProfiles = connectionsData.map((connection) => ({
+        ...connection,
+        requester: connection.requester,
+        addressee: connection.addressee,
       }));
 
       setConnections(connectionsWithProfiles);
-    } catch (error) {
-      console.error('Error loading connections:', error);
-    } finally {
       setLoading(false);
+    } catch (error) {
+      console.error('Error fetching connections:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load connections. Please try again.',
+        variant: 'destructive',
+      });
     }
   };
 
-  const loadMessages = async (connectionId: string) => {
+  const fetchMessages = async (connectionId: string) => {
     try {
-      const { data, error } = await supabase
+      const { data: messagesData, error: messagesError } = await supabase
         .from('direct_messages')
         .select('*')
         .eq('connection_id', connectionId)
         .order('created_at', { ascending: true });
 
-      if (error) throw error;
-      setMessages(data || []);
+      if (messagesError) throw messagesError;
+
+      setMessages(messagesData);
     } catch (error) {
-      console.error('Error loading messages:', error);
-    }
-  };
-
-  const loadActiveLocations = async () => {
-    if (!selectedConnection) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('location_shares')
-        .select(`
-          *,
-          profiles(first_name, last_name, display_name, profile_picture_urls)
-        `)
-        .eq('connection_id', selectedConnection.id)
-        .gt('expires_at', new Date().toISOString())
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setActiveLocations(data || []);
-    } catch (error) {
-      console.error('Error loading active locations:', error);
-    }
-  };
-
-  const handleMessagingAccess = () => {
-    if (hasAcceptedMessaging === false) {
-      setShowTerms(true);
-    }
-  };
-
-  const handleLocationShare = () => {
-    if (hasAcceptedLocation === false) {
-      setShowLocationTerms(true);
-    } else {
-      shareLocation();
-    }
-  };
-
-  const shareLocation = async () => {
-    if (!selectedConnection || !user) return;
-
-    try {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(async (position) => {
-          const { latitude, longitude } = position.coords;
-          
-          const expiresAt = new Date();
-          expiresAt.setHours(expiresAt.getHours() + 1);
-
-          const { error } = await supabase
-          .from('location_shares')
-          .upsert({
-            connection_id: selectedConnection.id,
-            user_id: user.id,
-            latitude,
-            longitude,
-            expires_at: expiresAt.toISOString()
-          }, {
-            onConflict: ['user_id', 'connection_id'] // 🔑 specify the conflict key
-          });
-        
-          if (error) throw error;
-          
-          await supabase
-            .from('direct_messages')
-            .upsert({
-              connection_id: selectedConnection.id,
-              sender_id: user.id,
-              message: '📍 I shared my location with you for the next hour.'
-            });
-
-          loadActiveLocations();
-        }, (error) => {
-          console.error('Error getting location:', error);
-        });
-      }
-    } catch (error) {
-      console.error('Error sharing location:', error);
+      console.error('Error fetching messages:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load messages. Please try again.',
+        variant: 'destructive',
+      });
     }
   };
 
   const sendMessage = async () => {
-    if (onInteractionAttempt) {
-      onInteractionAttempt();
+    if (!user || !selectedConnection || !newMessage.trim()) {
+      if (!user) {
+        toast({
+          title: 'Not authenticated',
+          description: 'Please sign in to send messages.',
+          variant: 'destructive',
+        });
+      } else if (!selectedConnection) {
+        toast({
+          title: 'No connection selected',
+          description: 'Please select a connection to send a message.',
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Empty message',
+          description: 'Please enter a message to send.',
+          variant: 'destructive',
+        });
+      }
       return;
     }
-
-    if (hasAcceptedMessaging === false) {
-      setShowTerms(true);
-      return;
-    }
-
-    if (!newMessage.trim() || !selectedConnection || !user) return;
 
     try {
-      const { error } = await supabase
+      const { data: messageData, error: messageError } = await supabase
         .from('direct_messages')
         .insert({
           connection_id: selectedConnection.id,
           sender_id: user.id,
-          message: newMessage.trim()
-        });
+          message: newMessage.trim(),
+        })
+        .select('*')
+        .single();
 
-      if (error) throw error;
+      if (messageError) throw messageError;
+
+      setMessages([...messages, messageData]);
       setNewMessage('');
+      scrollToBottom();
     } catch (error) {
       console.error('Error sending message:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to send message. Please try again.',
+        variant: 'destructive',
+      });
     }
   };
 
-  const getDisplayName = (profile: Connection['profile']) => {
-    if (!profile) return 'Anonymous User';
-    if (profile.display_name) return profile.display_name;
-    if (profile.first_name && profile.last_name) {
-      return `${profile.first_name} ${profile.last_name}`;
-    }
-    return profile.first_name || 'Anonymous User';
+  const subscribeToPresence = async () => {
+    if (!user) return;
+
+    await supabase.from(`presence:event-${eventId}`).subscribe(async (msg) => {
+      if (msg.payload && msg.payload.online_users) {
+        setOnlineUsers(msg.payload.online_users);
+      }
+    })
+  }
+
+  const isUserOnline = (userId: string) => {
+    return onlineUsers.includes(userId);
   };
 
-  const handleLocationClick = () => {
-    //console.log(showLocationMap)
+  const renderConnectionCard = (connection: ConnectionWithProfile, isOnline: boolean) => {
+    const otherUser = connection.requester_id === user?.id ? connection.addressee : connection.requester;
     
-    setShowLocationMap(true);
+    return (
+      <div
+        key={connection.id}
+        onClick={() => setSelectedConnection(connection)}
+        className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+          selectedConnection?.id === connection.id 
+            ? 'bg-primary/10 border-primary' 
+            : 'hover:bg-accent/50'
+        }`}
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <Avatar>
+                <AvatarImage 
+                  src={otherUser?.profile_picture_urls?.[0] || ''} 
+                  alt={getDisplayName(otherUser)} 
+                />
+                <AvatarFallback>
+                  <User className="h-5 w-5" />
+                </AvatarFallback>
+              </Avatar>
+              {isOnline && (
+                <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+              )}
+            </div>
+            <div>
+              <p className="font-medium">{getDisplayName(otherUser)}</p>
+              <p className="text-sm text-muted-foreground">
+                {otherUser?.city && otherUser?.state && `${otherUser.city}, ${otherUser.state}`}
+              </p>
+            </div>
+          </div>
+          
+          {/* Add report dropdown */}
+          <div onClick={(e) => e.stopPropagation()}>
+            <UserActionsDropdown 
+              userId={otherUser?.id || ''} 
+              userName={getDisplayName(otherUser)}
+            />
+          </div>
+        </div>
+      </div>
+    );
   };
 
   const renderMessage = (message: Message) => {
-    const isLocationMessage = message.message.includes('📍');
-    
-    if (isLocationMessage) {
-      return (
-        <div
-          className={`flex ${
-            message.sender_id === user?.id ? 'justify-end' : 'justify-start'
-          }`}
-        >
-          <div
-            className={`max-w-xs rounded-lg cursor-pointer hover:opacity-80 ${
-              message.sender_id === user?.id
-                ? 'bg-blue-500 text-white'
-                : 'bg-gray-200 text-gray-900'
-            }`}
-            onClick={handleLocationClick}
-          >
-            <div className="p-2">
-              <div className="w-full h-20 bg-green-200 rounded mb-2 flex items-center justify-center">
-                <MapPin className="h-8 w-8 text-green-600" />
-              </div>
-              <p className="text-xs">{message.message}</p>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
+    const isCurrentUser = message.sender_id === user?.id;
     return (
       <div
-        className={`flex ${
-          message.sender_id === user?.id ? 'justify-end' : 'justify-start'
-        }`}
+        key={message.id}
+        className={`mb-2 flex flex-col ${isCurrentUser ? 'items-end' : 'items-start'}`}
       >
         <div
-          className={`max-w-xs px-4 py-2 rounded-lg ${
-            message.sender_id === user?.id
-              ? 'bg-blue-500 text-white'
-              : 'bg-gray-200 text-gray-900'
+          className={`rounded-lg px-3 py-2 text-sm ${
+            isCurrentUser ? 'bg-primary text-primary-foreground' : 'bg-muted'
           }`}
         >
           {message.message}
         </div>
+        <div className="text-xs text-muted-foreground mt-1">
+          {format(new Date(message.created_at), 'MMM d, yyyy h:mm a')}
+        </div>
       </div>
     );
   };
 
-  if (loading || messagingTermsLoading) {
+  const renderMessageHeader = () => {
+    if (!selectedConnection) return null;
+    
+    const otherUser = selectedConnection.requester_id === user?.id 
+      ? selectedConnection.addressee 
+      : selectedConnection.requester;
+    
     return (
-      <div className="text-center py-4">
-        <div className="animate-pulse">Loading messages...</div>
+      <div className="p-4 border-b bg-background/95 backdrop-blur">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Avatar>
+              <AvatarImage 
+                src={otherUser?.profile_picture_urls?.[0] || ''} 
+                alt={getDisplayName(otherUser)} 
+              />
+              <AvatarFallback>
+                <User className="h-5 w-5" />
+              </AvatarFallback>
+            </Avatar>
+            <div>
+              <h3 className="font-medium">{getDisplayName(otherUser)}</h3>
+              <p className="text-sm text-muted-foreground">
+                {otherUser?.city && otherUser?.state && `${otherUser.city}, ${otherUser.state}`}
+              </p>
+            </div>
+          </div>
+          
+          {/* Add report dropdown in message header */}
+          <UserActionsDropdown 
+            userId={otherUser?.id || ''} 
+            userName={getDisplayName(otherUser)}
+          />
+        </div>
       </div>
     );
+  };
+
+  if (loading) {
+    return <div className="text-center py-4">Loading connections...</div>;
   }
 
-  const showBlur = hasAcceptedMessaging === false;
-
   return (
-    <>
-      <div className={`relative ${showBlur ? 'blur-sm pointer-events-none' : ''}`}>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 h-96">
-          {/* Connections List */}
-          <Card className="md:col-span-1">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-sm md:text-base">
-                <MessageCircle className="h-4 w-4 md:h-5 md:w-5" />
-                Messages
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <ScrollArea className="h-64">
-                {connections.length === 0 ? (
-                  <div className="p-4 text-center text-muted-foreground text-sm">
-                    No connections yet
-                  </div>
-                ) : (
-                  connections.map((connection) => (
-                    <div
-                      key={connection.id}
-                      className={`p-4 border-b cursor-pointer hover:bg-gray-50 ${
-                        selectedConnection?.id === connection.id ? 'bg-blue-50' : ''
-                      }`}
-                      onClick={() => setSelectedConnection(connection)}
-                    >
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-8 w-8 md:h-10 md:w-10">
-                          <AvatarImage 
-                            src={connection.profile?.profile_picture_urls?.[0] || ''} 
-                            alt={getDisplayName(connection.profile)} 
-                          />
-                          <AvatarFallback>
-                            <User className="h-4 w-4 md:h-5 md:w-5" />
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium truncate text-sm">
-                            {getDisplayName(connection.profile)}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </ScrollArea>
-            </CardContent>
-          </Card>
-
-          {/* Messages */}
-          <Card className="md:col-span-2">
-            <CardContent className="p-0 h-full flex flex-col">
-              {selectedConnection ? (
-                <>
-                  {/* Messages Header */}
-                  <div className="p-4 border-b flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-6 w-6 md:h-8 md:w-8">
-                        <AvatarImage 
-                          src={selectedConnection.profile?.profile_picture_urls?.[0] || ''} 
-                          alt={getDisplayName(selectedConnection.profile)} 
-                        />
-                        <AvatarFallback>
-                          <User className="h-3 w-3 md:h-4 md:w-4" />
-                        </AvatarFallback>
-                      </Avatar>
-                      <h3 className="font-semibold text-sm md:text-base">
-                        {getDisplayName(selectedConnection.profile)}
-                      </h3>
-                    </div>
-                    <Avatar className="h-6 w-6 md:h-8 md:w-8">
-                      <AvatarImage 
-                        src={selectedConnection.profile?.profile_picture_urls?.[0] || ''} 
-                        alt={getDisplayName(selectedConnection.profile)} 
-                      />
-                      <AvatarFallback>
-                        <User className="h-3 w-3 md:h-4 md:w-4" />
-                      </AvatarFallback>
-                    </Avatar>
-                  </div>
-
-                  {/* Messages List */}
-                  <ScrollArea className="flex-1 p-4">
-                    <div className="space-y-4">
-                      {messages.map((message) => (
-                        <div key={message.id}>
-                          {renderMessage(message)}
-                        </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
-
-                  {/* Message Input */}
-                  <div className="p-4 border-t">
-                    <div className="flex gap-2">
-                      <Input
-                        value={newMessage}
-                        onChange={(e) => setNewMessage(e.target.value)}
-                        placeholder="Type a message..."
-                        onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-                        className="text-sm"
-                      />
-                      <Button onClick={handleLocationShare} size="sm" variant="outline">
-                        <MapPin className="h-3 w-3 md:h-4 md:w-4" />
-                      </Button>
-                      <Button onClick={sendMessage} size="sm">
-                        <Send className="h-3 w-3 md:h-4 md:w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
-                  Select a conversation to start messaging
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 h-full">
+      {/* Connections List */}
+      <div className="md:col-span-1 h-full overflow-y-auto">
+        <h2 className="text-lg font-semibold mb-2">Connections</h2>
+        {connections.length === 0 ? (
+          <div className="text-muted-foreground">No connections yet.</div>
+        ) : (
+          connections.map((connection) => (
+            renderConnectionCard(
+              connection,
+              isUserOnline(
+                connection.requester_id === user?.id
+                  ? connection.addressee_id
+                  : connection.requester_id
+              )
+            )
+          ))
+        )}
       </div>
 
-      {/* Terms and Conditions Overlays */}
-      {showBlur && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/20 z-10">
-          <Button onClick={handleMessagingAccess} className="bg-primary hover:bg-primary/90">
-            Read Terms and Conditions
-          </Button>
-        </div>
-      )}
+      {/* Messages Area */}
+      <div className="md:col-span-2 flex flex-col h-full">
+        {renderMessageHeader()}
 
-      <TermsAndConditions
-        isOpen={showTerms}
-        onClose={() => setShowTerms(false)}
-        onAccept={() => {
-          markMessagingAccepted();
-          setShowTerms(false);
-        }}
-        termsType="messaging"
-      />
+        {selectedConnection ? (
+          <div className="flex-1 p-4 overflow-y-auto">
+            {messages.map((message) => renderMessage(message))}
+            <div ref={messagesEndRef} />
+          </div>
+        ) : (
+          <div className="flex-1 flex items-center justify-center text-muted-foreground">
+            Select a connection to view messages.
+          </div>
+        )}
 
-      <TermsAndConditions
-        isOpen={showLocationTerms}
-        onClose={() => setShowLocationTerms(false)}
-        onAccept={() => {
-          markLocationAccepted();
-          setShowLocationTerms(false);
-          shareLocation();
-        }}
-        termsType="location_sharing"
-      />
-
-        <LocationMap
-         isOpen={showLocationMap}
-         onClose={() => setShowLocationMap(false)}
-         locations={activeLocations}>
-          <div />
-        </LocationMap>
-    </>
+        {/* Message Input */}
+        {selectedConnection && (
+          <div className="p-4 border-t bg-background/95 backdrop-blur">
+            <div className="flex items-center gap-2">
+              <Input
+                type="text"
+                placeholder="Type your message..."
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    sendMessage();
+                  }
+                }}
+              />
+              <Button onClick={sendMessage}>Send</Button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 };
 

@@ -1,24 +1,30 @@
-
 import { useState, useEffect } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { Heart, MessageCircle, User } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Heart, Users, Eye, Clock, CheckCircle } from 'lucide-react';
-import MatchesTable from './MatchesTable';
-import MatchOverlay from './MatchOverlay';
-import AllMatchesPopup from './AllMatchesPopup';
-import PreviousMatches from './PreviousMatches';
+import { cn, getDisplayName } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
+import UserActionsDropdown from './UserActionsDropdown';
 
-interface Match {
-  user_id: string;
-  profile: {
-    first_name: string | null;
-    last_name: string | null;
-    display_name: string | null;
-    profile_picture_urls: string[] | null;
-  };
-  compatibility_score: number;
+interface Profile {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  display_name: string | null;
+  date_of_birth: string | null;
+  age_range: string | null;
+  gender: string | null;
+  phone_number: string | null;
+  city: string | null;
+  state: string | null;
+  church_name: string | null;
+  marital_status: string | null;
+  has_kids: string | null;
+  life_verse: string | null;
+  profile_picture_urls: string[] | null;
 }
 
 interface EventMatchesProps {
@@ -28,215 +34,225 @@ interface EventMatchesProps {
 
 const EventMatches = ({ eventId, onInteractionAttempt }: EventMatchesProps) => {
   const { user } = useAuth();
-  const [topMatches, setTopMatches] = useState<Match[]>([]);
+  const { toast } = useToast();
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [likedProfiles, setLikedProfiles] = useState<string[]>([]);
+  const [matchedProfiles, setMatchedProfiles] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showAllMatches, setShowAllMatches] = useState(false);
-  const [matchOverlay, setMatchOverlay] = useState<{
-    show: boolean;
-    match: Match | null;
-  }>({ show: false, match: null });
 
   useEffect(() => {
-    if (user) {
-      generateAndLoadMatches();
+    if (eventId && user) {
+      fetchEventProfiles();
+      fetchLikedProfiles();
+      fetchMatchedProfiles();
     }
   }, [eventId, user]);
 
-  const generateAndLoadMatches = async () => {
-    if (!user) return;
-
+  const fetchEventProfiles = async () => {
+    setLoading(true);
     try {
-      console.log('Generating matches for user:', user.id, 'in event:', eventId);
-      
-      const { error: generateError } = await supabase.functions.invoke('generate-matches', {
-        body: { eventId, userId: user.id }
-      });
-
-      if (generateError) {
-        console.error('Error generating matches:', generateError);
-      }
-
-      const { data, error } = await supabase.functions.invoke('get-filtered-matches', {
-        body: { eventId, limit: 5 }
-      });
+      const { data, error } = await supabase
+        .from('event_attendees')
+        .select('user_id, profiles(*)')
+        .eq('event_id', eventId)
+        .neq('user_id', user!.id) // Exclude current user
+        .returns<{ user_id: string; profiles: Profile }[]>();
 
       if (error) throw error;
 
-      const matchesWithSignedUrls = await Promise.all(
-        (data || []).map(async (match: Match) => {
-          const rawUrls: string[] = match.profile?.profile_picture_urls || [];
-          const signedUrls = await getSignedUrls(rawUrls);
-          
-          return {
-            ...match,
-            profile: {
-              ...match.profile,
-              profile_picture_urls: signedUrls,
-            }
-          };
-        })
-      );
-
-      console.log('Loaded matches:', matchesWithSignedUrls.length);
-      setTopMatches(matchesWithSignedUrls);
+      const profilesData = data.map(item => item.profiles).filter(Boolean) as Profile[];
+      setProfiles(profilesData);
     } catch (error) {
-      console.error('Error loading matches:', error);
+      console.error('Error fetching event profiles:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load profiles. Please try again.',
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleMatchResponse = async (targetUserId: string, response: 'yes' | 'no') => {
+  const fetchLikedProfiles = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('match_responses')
+        .select('target_user_id')
+        .eq('event_id', eventId)
+        .eq('user_id', user!.id)
+        .eq('response', 'like')
+        .returns<{ target_user_id: string }[]>();
+
+      if (error) throw error;
+      setLikedProfiles(data.map(item => item.target_user_id));
+    } catch (error) {
+      console.error('Error fetching liked profiles:', error);
+    }
+  };
+
+  const fetchMatchedProfiles = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('matches')
+        .select('user1_id, user2_id')
+        .eq('event_id', eventId)
+        .or(`user1_id.eq.${user!.id},user2_id.eq.${user!.id}`)
+        .returns<{ user1_id: string; user2_id: string }[]>();
+
+      if (error) throw error;
+
+      const matchedUserIds = data.map(match =>
+        match.user1_id === user!.id ? match.user2_id : match.user1_id
+      );
+      setMatchedProfiles(matchedUserIds);
+    } catch (error) {
+      console.error('Error fetching matched profiles:', error);
+    }
+  };
+
+  const handleLike = async (targetUserId: string) => {
+    if (!user) {
+      toast({
+        title: 'Not authenticated',
+        description: 'You must be logged in to like a profile.',
+      });
+      return;
+    }
+
     if (onInteractionAttempt) {
       onInteractionAttempt();
       return;
     }
 
-    if (!user) return;
-
     try {
-      console.log('Handling match response:', response, 'for user:', targetUserId);
-      
-      const { data, error } = await supabase.functions.invoke('handle-match-response', {
-        body: { eventId, targetUserId, response }
-      });
+      const { error } = await supabase
+        .from('match_responses')
+        .insert({
+          event_id: eventId,
+          user_id: user.id,
+          target_user_id: targetUserId,
+          response: 'like',
+        });
 
       if (error) throw error;
 
-      if (data.isMutualMatch && response === 'yes') {
-        const match = topMatches.find(m => m.user_id === targetUserId);
-        if (match) {
-          console.log('Mutual match found! Showing overlay');
-          setMatchOverlay({ show: true, match });
-        }
-      }
-
-      setTopMatches(prev => prev.filter(match => match.user_id !== targetUserId));
+      setLikedProfiles(prev => [...prev, targetUserId]);
+      toast({
+        title: 'Profile Liked',
+        description: 'You have liked this profile.',
+      });
     } catch (error) {
-      console.error('Error handling match response:', error);
+      console.error('Error liking profile:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to like profile. Please try again.',
+        variant: 'destructive',
+      });
     }
   };
 
-  const closeMatchOverlay = () => {
-    setMatchOverlay({ show: false, match: null });
+  const handleMessage = (targetUserId: string) => {
+    if (onInteractionAttempt) {
+      onInteractionAttempt();
+    } else {
+      // Implement direct navigation to messages or trigger a chat modal
+      toast({
+        title: 'Message Feature',
+        description: 'This feature is under development.',
+      });
+    }
   };
 
-  const handleGoToDM = () => {
-    closeMatchOverlay();
-  };
+  const isLiked = (profileId: string) => likedProfiles.includes(profileId);
+  const isMatched = (profileId: string) => matchedProfiles.includes(profileId);
 
-  if (loading) {
-    return (
-      <Card className="gradient-card border-0 shadow-lg">
-        <CardContent className="p-6 text-center">
-          <div className="animate-pulse">Loading matches...</div>
-        </CardContent>
-      </Card>
-    );
-  }
+  const renderProfileCard = (profile: Profile, isLiked: boolean, isMatched: boolean) => (
+    <Card key={profile.id} className="gradient-card border-0 shadow-lg overflow-hidden">
+      <CardContent className="p-0">
+        <div className="relative">
+          {/* Profile Image */}
+          <div className="aspect-square bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center relative">
+            {profile.profile_picture_urls && profile.profile_picture_urls.length > 0 ? (
+              <img
+                src={profile.profile_picture_urls[0]}
+                alt={getDisplayName(profile)}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = 'none';
+                }}
+              />
+            ) : (
+              <User className="h-20 w-20 text-gray-400" />
+            )}
+            
+            {/* User Actions Dropdown */}
+            <div className="absolute top-2 right-2">
+              <UserActionsDropdown 
+                userId={profile.id} 
+                userName={getDisplayName(profile)}
+                className="bg-white/80 hover:bg-white/90"
+              />
+            </div>
+          </div>
+
+          {/* Profile Info */}
+          <div className="p-4">
+            <h3 className="font-semibold text-lg">{getDisplayName(profile)}</h3>
+            <p className="text-sm text-muted-foreground">
+              {profile.city}, {profile.state}
+            </p>
+            <div className="mt-2 flex items-center gap-2">
+              {profile.age_range && (
+                <span className="text-xs bg-secondary/50 text-secondary-foreground px-2 py-1 rounded-full">
+                  {profile.age_range}
+                </span>
+              )}
+              {profile.marital_status && (
+                <span className="text-xs bg-secondary/50 text-secondary-foreground px-2 py-1 rounded-full">
+                  {profile.marital_status}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex justify-around border-t p-4">
+            <Button
+              variant="outline"
+              className={cn({ 'opacity-50 cursor-not-allowed': isLiked(profile.id) })}
+              onClick={() => handleLike(profile.id)}
+              disabled={isLiked(profile.id)}
+            >
+              <Heart className="h-5 w-5 mr-2" />
+              {isLiked(profile.id) ? 'Liked' : 'Like'}
+            </Button>
+            <Button variant="outline" onClick={() => handleMessage(profile.id)}>
+              <MessageCircle className="h-5 w-5 mr-2" />
+              Message
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
 
   return (
-    <>
-      <div className="space-y-6">
-        {/* Your Potential Matches */}
-        <Card className="gradient-card border-0 shadow-lg">
-          <CardHeader>
-            <div className="flex justify-between items-center">
-              <CardTitle className="flex items-center gap-2 text-base md:text-lg">
-                <Heart className="h-4 w-4 md:h-5 md:w-5 text-pink-500" />
-                Your Potential Matches
-              </CardTitle>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => setShowAllMatches(true)}
-                className="text-xs md:text-sm"
-              >
-                <Eye className="h-3 w-3 md:h-4 md:w-4 mr-1" />
-                View All Matches
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {topMatches.length === 0 ? (
-              <div className="text-center py-8">
-                <Users className="h-8 w-8 md:h-12 md:w-12 mx-auto mb-4 text-muted-foreground" />
-                <h3 className="text-base md:text-lg font-semibold mb-2">No matches yet</h3>
-                <p className="text-muted-foreground text-sm">Check back soon for potential connections!</p>
-              </div>
-            ) : (
-              <MatchesTable 
-                eventId={eventId}
-                excludeUserIds={[]}
-                onMatchResponse={handleMatchResponse}
-              />
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Previous Matches */}
-        <Card className="gradient-card border-0 shadow-lg">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base md:text-lg">
-              <Clock className="h-4 w-4 md:h-5 md:w-5 text-blue-500" />
-              Previous Matches
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <PreviousMatches 
-              eventId={eventId}
-              onInteractionAttempt={onInteractionAttempt}
-            />
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Match Overlay */}
-      {matchOverlay.show && matchOverlay.match && (
-        <MatchOverlay
-          match={matchOverlay.match}
-          onClose={closeMatchOverlay}
-          onGoToDM={handleGoToDM}
-        />
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {loading ? (
+        <div className="text-center py-8 col-span-full">
+          <div className="animate-pulse">Loading profiles...</div>
+        </div>
+      ) : profiles.length === 0 ? (
+        <div className="text-center py-8 col-span-full text-muted-foreground">
+          No profiles found for this event.
+        </div>
+      ) : (
+        profiles.map(profile => renderProfileCard(profile, isLiked(profile.id), isMatched(profile.id)))
       )}
-
-      {/* All Matches Popup */}
-      <AllMatchesPopup
-        isOpen={showAllMatches}
-        onClose={() => setShowAllMatches(false)}
-        eventId={eventId}
-        onMatchResponse={handleMatchResponse}
-        onInteractionAttempt={onInteractionAttempt}
-      />
-    </>
+    </div>
   );
-};
-
-const getSignedUrls = async (urls: string[]): Promise<string[]> => {
-  if (!urls || urls.length === 0) return [];
-  
-  try {
-    const signedUrls = await Promise.all(
-      urls.map(async (url) => {
-        if (!url) return '';
-        
-        const urlParts = url.split('/');
-        const fileName = urlParts[urlParts.length - 1];
-        const bucketPath = `profile-pictures/${fileName}`;
-        
-        const { data } = await supabase.storage
-          .from('profile-pictures')
-          .createSignedUrl(bucketPath, 3600);
-        
-        return data?.signedUrl || '';
-      })
-    );
-    
-    return signedUrls;
-  } catch (error) {
-    console.error('Error creating signed URLs:', error);
-    return urls;
-  }
 };
 
 export default EventMatches;
