@@ -6,6 +6,14 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+export const getDisplayName = (profile) => {
+  if (profile?.display_name) return profile.display_name;
+  if (profile?.first_name && profile?.last_name) {
+    return `${profile.first_name} ${profile.last_name}`;
+  }
+  return profile?.first_name || 'Anonymous User';
+};
+
 export const getSignedUrls = async (urls: string[]): Promise<string[]> => {
   return Promise.all(
     urls.map(async (fullUrl) => {
