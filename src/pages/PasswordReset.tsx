@@ -20,19 +20,33 @@ const PasswordReset = () => {
   const [isResettingPassword, setIsResettingPassword] = useState(false);
 
   useEffect(() => {
-    // Check if we have access_token and refresh_token in URL (from email link)
-    const accessToken = searchParams.get('access_token');
-    const refreshToken = searchParams.get('refresh_token');
+    // Check if we have recovery tokens in URL (from email link)
+    const token = searchParams.get('token');
+    const type = searchParams.get('type');
     
-    if (accessToken && refreshToken) {
+    if (token && type === 'recovery') {
+      console.log('Recovery token found, setting password reset mode');
       setIsResettingPassword(true);
-      // Set the session with the tokens from the URL
-      supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken,
+      
+      // Exchange the recovery token for a session
+      supabase.auth.verifyOtp({
+        token_hash: token,
+        type: 'recovery',
+      }).then(({ data, error }) => {
+        if (error) {
+          console.error('Error verifying recovery token:', error);
+          toast({
+            title: "Error",
+            description: "Invalid or expired reset link. Please request a new one.",
+            variant: "destructive"
+          });
+          setIsResettingPassword(false);
+        } else {
+          console.log('Recovery token verified successfully');
+        }
       });
     }
-  }, [searchParams]);
+  }, [searchParams, toast]);
 
   const handlePasswordReset = async (e: React.FormEvent) => {
     e.preventDefault();
