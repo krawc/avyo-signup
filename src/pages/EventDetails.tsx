@@ -313,7 +313,7 @@ const EventDetails = () => {
               <div className={!hasAcceptedMessaging && !loadingMessagingTerms ? 'blur-sm pointer-events-none' : ''}>
                 <DirectMessages 
                   eventId={eventId!}
-                  onInteractionAttempt={hasAccess ? undefined : handleInteractionAttempt}
+                  onInteractionAttempt={needsPayment ? handleInteractionAttempt : null}
                 />
               </div>
             </TabsContent>
