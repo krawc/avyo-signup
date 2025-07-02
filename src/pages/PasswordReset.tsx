@@ -8,11 +8,13 @@ import { ArrowLeft, Mail, Church, Lock } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 
 const PasswordReset = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { user, session } = useAuth();
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -20,33 +22,12 @@ const PasswordReset = () => {
   const [isResettingPassword, setIsResettingPassword] = useState(false);
 
   useEffect(() => {
-    // Check if we have recovery tokens in URL (from email link)
-    const token = searchParams.get('token');
-    const type = searchParams.get('type');
-    
-    if (token && type === 'recovery') {
-      console.log('Recovery token found, setting password reset mode');
+    // Check if user is authenticated (means they came from a recovery email)
+    if (user && session) {
+      console.log('User is authenticated, setting password reset mode');
       setIsResettingPassword(true);
-      
-      // Exchange the recovery token for a session
-      supabase.auth.verifyOtp({
-        token_hash: token,
-        type: 'recovery',
-      }).then(({ data, error }) => {
-        if (error) {
-          console.error('Error verifying recovery token:', error);
-          toast({
-            title: "Error",
-            description: "Invalid or expired reset link. Please request a new one.",
-            variant: "destructive"
-          });
-          setIsResettingPassword(false);
-        } else {
-          console.log('Recovery token verified successfully');
-        }
-      });
     }
-  }, [searchParams, toast]);
+  }, [user, session]);
 
   const handlePasswordReset = async (e: React.FormEvent) => {
     e.preventDefault();
