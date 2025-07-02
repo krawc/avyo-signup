@@ -9,6 +9,7 @@ import MatchesTable from './MatchesTable';
 import MatchOverlay from './MatchOverlay';
 import AllMatchesPopup from './AllMatchesPopup';
 import PreviousMatches from './PreviousMatches';
+import { getSignedUrls } from '@/lib/utils';
 
 interface Match {
   user_id: string;
@@ -212,31 +213,5 @@ const EventMatches = ({ eventId, onInteractionAttempt }: EventMatchesProps) => {
   );
 };
 
-const getSignedUrls = async (urls: string[]): Promise<string[]> => {
-  if (!urls || urls.length === 0) return [];
-  
-  try {
-    const signedUrls = await Promise.all(
-      urls.map(async (url) => {
-        if (!url) return '';
-        
-        const urlParts = url.split('/');
-        const fileName = urlParts[urlParts.length - 1];
-        const bucketPath = `profile-pictures/${fileName}`;
-        
-        const { data } = await supabase.storage
-          .from('profile-pictures')
-          .createSignedUrl(bucketPath, 3600);
-        
-        return data?.signedUrl || '';
-      })
-    );
-    
-    return signedUrls;
-  } catch (error) {
-    console.error('Error creating signed URLs:', error);
-    return urls;
-  }
-};
 
 export default EventMatches;

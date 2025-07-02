@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Heart, X, User, MapPin, Church, BookOpen, Users, Calendar } from 'lucide-react';
-import { getSignedUrls } from '@/lib/utils';
 
 interface Match {
   user_id: string;
@@ -48,8 +47,6 @@ const ProfileViewPopup = ({
 }: ProfileViewPopupProps) => {
   const { user } = useAuth();
 
-  const [profilePictures, setProfilePictures] = useState(match.profile?.profile_picture_urls || [])
-
   useEffect(() => {
     const trackProfileView = async () => {
       if (match && user && isOpen && !readOnly) {
@@ -81,21 +78,7 @@ const ProfileViewPopup = ({
     return match.profile?.first_name || 'Anonymous User';
   };
 
-  useEffect(() => {
-    if (match) {
-      fetchProfilePics();
-    }
-  }, [match]);
-
-  const fetchProfilePics = async () => {
-      // If there are image URLs, generate signed versions
-      if (match.profile?.profile_picture_urls && match.profile?.profile_picture_urls.length > 0) {
-        const signedUrls = await getSignedUrls(match.profile?.profile_picture_urls);
-        setProfilePictures(signedUrls)
-      }
-  }
-
-
+  const profilePictures = match.profile?.profile_picture_urls || [];
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

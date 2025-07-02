@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import MatchesTable from './MatchesTable';
+import { getSignedUrls } from '@/lib/utils';
 
 interface Match {
   user_id: string;
@@ -113,31 +114,5 @@ const AllMatchesPopup = ({
   );
 };
 
-const getSignedUrls = async (urls: string[]): Promise<string[]> => {
-  if (!urls || urls.length === 0) return [];
-  
-  try {
-    const signedUrls = await Promise.all(
-      urls.map(async (url) => {
-        if (!url) return '';
-        
-        const urlParts = url.split('/');
-        const fileName = urlParts[urlParts.length - 1];
-        const bucketPath = `profile-pictures/${fileName}`;
-        
-        const { data } = await supabase.storage
-          .from('profile-pictures')
-          .createSignedUrl(bucketPath, 3600);
-        
-        return data?.signedUrl || '';
-      })
-    );
-    
-    return signedUrls;
-  } catch (error) {
-    console.error('Error creating signed URLs:', error);
-    return urls;
-  }
-};
 
 export default AllMatchesPopup;

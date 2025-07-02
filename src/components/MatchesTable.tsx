@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Heart, X, User, Eye } from 'lucide-react';
 import ProfileViewPopup from './ProfileViewPopup';
+import { getSignedUrls } from '@/lib/utils';
 
 interface Match {
   user_id: string;
@@ -69,7 +70,7 @@ const MatchesTable = ({ eventId, excludeUserIds, onMatchResponse, matches: propM
         (data || []).map(async (match: Match) => {
           const rawUrls: string[] = match.profile?.profile_picture_urls || [];
           const signedUrls = await getSignedUrls(rawUrls);
-          
+          console.log(rawUrls)
           return {
             ...match,
             profile: {
@@ -112,32 +113,6 @@ const MatchesTable = ({ eventId, excludeUserIds, onMatchResponse, matches: propM
     return profile.first_name || 'Anonymous User';
   };
 
-  const getSignedUrls = async (urls: string[]): Promise<string[]> => {
-    if (!urls || urls.length === 0) return [];
-    
-    try {
-      const signedUrls = await Promise.all(
-        urls.map(async (url) => {
-          if (!url) return '';
-          
-          const urlParts = url.split('/');
-          const fileName = urlParts[urlParts.length - 1];
-          const bucketPath = `profile-pictures/${fileName}`;
-          
-          const { data } = await supabase.storage
-            .from('profile-pictures')
-            .createSignedUrl(bucketPath, 3600);
-          
-          return data?.signedUrl || '';
-        })
-      );
-      
-      return signedUrls;
-    } catch (error) {
-      console.error('Error creating signed URLs:', error);
-      return urls;
-    }
-  };
 
   if (loading) {
     return (

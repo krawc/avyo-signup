@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { User, Clock, CheckCircle, Eye } from 'lucide-react';
 import ProfileViewPopup from './ProfileViewPopup';
+import { getSignedUrls } from '@/lib/utils';
 
 interface MatchResponse {
   target_user_id: string;
@@ -239,33 +240,6 @@ const PreviousMatches = ({ eventId, onInteractionAttempt }: PreviousMatchesProps
       />
     </>
   );
-};
-
-const getSignedUrls = async (urls: string[]): Promise<string[]> => {
-  if (!urls || urls.length === 0) return [];
-  
-  try {
-    const signedUrls = await Promise.all(
-      urls.map(async (url) => {
-        if (!url) return '';
-        
-        const urlParts = url.split('/');
-        const fileName = urlParts[urlParts.length - 1];
-        const bucketPath = `profile-pictures/${fileName}`;
-        
-        const { data } = await supabase.storage
-          .from('profile-pictures')
-          .createSignedUrl(bucketPath, 3600);
-        
-        return data?.signedUrl || '';
-      })
-    );
-    
-    return signedUrls;
-  } catch (error) {
-    console.error('Error creating signed URLs:', error);
-    return urls;
-  }
 };
 
 export default PreviousMatches;
