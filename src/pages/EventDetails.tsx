@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,22 +29,36 @@ interface Event {
   updated_at: string;
 }
 
+interface PaymentAccess {
+  hasAccess: boolean;
+}
+
 const EventDetails = () => {
   const { eventId } = useParams();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [event, setEvent] = useState<Event | null>(null);
+  const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
+  const [paymentAccess, setPaymentAccess] = useState<PaymentAccess>({ hasAccess: false });
+  const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
   const [showPaymentOverlay, setShowPaymentOverlay] = useState(false);
   const [hasAccess, setHasAccess] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [activeTab, setActiveTab] = useState('matches');
-  
+  const [isAttending, setIsAttending] = useState(false);
+
   const { hasAccepted: hasAcceptedMessaging, loading: loadingMessagingTerms, markAsAccepted: markMessagingAccepted } = useTermsAcceptance('messaging');
 
   useEffect(() => {
     if (eventId && user) {
       loadEvent();
       checkAccess();
+    }
+    // Check for payment success
+    if (searchParams.get('payment') === 'success') {
+      setShowPaymentSuccess(true);
+      verifyPayment();
     }
   }, [eventId, user]);
 
@@ -71,6 +85,74 @@ const EventDetails = () => {
       console.error('Error loading event:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+
+  const checkPaymentAccess = async () => {
+    if (!eventId || !user) return;
+
+    // Check if user has paid for this event
+    const { data: payment, error } = await supabase
+      .from('event_payments')
+      .select('*')
+      .eq('event_id', eventId)
+      .eq('user_id', user.id)
+      .eq('status', 'paid')
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error checking payment:', error);
+    }
+
+    console.log('payment checked', payment);
+
+    if (payment) {
+      setPaymentAccess({ hasAccess: true });
+    } else {
+      setPaymentAccess({ hasAccess: false });
+    }
+
+    // Check attendance status
+    checkAttendanceStatus();
+  };
+
+
+  const checkAttendanceStatus = async () => {
+    if (!eventId || !user) return;
+
+    const { data, error } = await supabase
+      .from('event_attendees')
+      .select('id')
+      .eq('event_id', eventId)
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (!error && data) {
+      setIsAttending(true);
+    }
+  };
+
+
+  const verifyPayment = async () => {
+    const sessionId = searchParams.get('session_id') || new URLSearchParams(window.location.search).get('session_id');
+    if (!sessionId) return;
+
+    try {
+      const { data, error } = await supabase.functions.invoke('verify-payment', {
+        body: { sessionId }
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        setPaymentAccess({ hasAccess: true });
+        setIsAttending(true);
+        // Remove payment params from URL
+        navigate(`/events/${eventId}`, { replace: true });
+      }
+    } catch (error) {
+      console.error('Payment verification error:', error);
     }
   };
 
