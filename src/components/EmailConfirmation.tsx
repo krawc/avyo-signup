@@ -51,7 +51,7 @@ const EmailConfirmation = ({ userEmail, onBack }: EmailConfirmationProps) => {
               </div>
               <CardTitle className="text-2xl">Confirm Your Email</CardTitle>
               <CardDescription className="text-base">
-                We've sent a confirmation email to:
+                We've sent you a confirmation email.
                 <br />
                 <strong className="text-foreground">{userEmail}</strong>
               </CardDescription>
