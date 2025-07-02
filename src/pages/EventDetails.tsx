@@ -187,8 +187,14 @@ const EventDetails = () => {
     }
   };
 
+  console.log(paymentAccess)
+  const needsPayment = !paymentAccess.hasAccess;
+
+
   const handleInteractionAttempt = () => {
-    setShowPaymentOverlay(true);
+    if (needsPayment) {
+       setShowPaymentOverlay(true);
+    }
   };
 
   const handlePaymentSuccess = () => {
@@ -289,7 +295,7 @@ const EventDetails = () => {
             <TabsContent value="matches">
               <EventMatches 
                 eventId={eventId!} 
-                onInteractionAttempt={hasAccess ? undefined : handleInteractionAttempt}
+                onInteractionAttempt={needsPayment ? handleInteractionAttempt : null}
               />
             </TabsContent>
 

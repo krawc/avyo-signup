@@ -38,6 +38,7 @@ const EventMatches = ({ eventId, onInteractionAttempt }: EventMatchesProps) => {
   }>({ show: false, match: null });
 
   useEffect(() => {
+    console.log(eventId, user)
     if (user) {
       generateAndLoadMatches();
     }
