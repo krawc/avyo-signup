@@ -51,16 +51,25 @@ const EventDetails = () => {
   const { hasAccepted: hasAcceptedMessaging, loading: loadingMessagingTerms, markAsAccepted: markMessagingAccepted } = useTermsAcceptance('messaging');
 
   useEffect(() => {
-    if (eventId && user) {
-      loadEvent();
-      checkAccess();
+
+    if (!user) {
+      return;
     }
+
+    if (!eventId) {
+      navigate('/');
+      return;
+    }
+    // if (eventId && user) {
+      loadEvent();
+      checkPaymentAccess();
+    //}
     // Check for payment success
     if (searchParams.get('payment') === 'success') {
       setShowPaymentSuccess(true);
       verifyPayment();
     }
-  }, [eventId, user]);
+  }, [eventId, user, navigate, searchParams]);
 
   useEffect(() => {
     // Show terms modal when user tries to access messages tab without accepting terms
