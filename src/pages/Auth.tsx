@@ -191,15 +191,6 @@ const Auth = () => {
                 </Button>
               </form>
 
-              <div className="text-center mt-6">
-                <Button
-                  variant="ghost"
-                  onClick={() => setIsLogin(!isLogin)}
-                  className="text-primary hover:bg-primary/10"
-                >
-                  {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
-                </Button>
-              </div>
             </CardContent>
           </Card>
         </div>
