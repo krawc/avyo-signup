@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Eye, User } from 'lucide-react';
 import { format } from 'date-fns';
+import { getSignedUrls } from '@/lib/utils';
 
 interface ProfileView {
   id: string;
@@ -50,12 +51,27 @@ const ProfileViewsList = ({ eventId }: ProfileViewsListProps) => {
 
       if (error) throw error;
 
+      const viewsWithSignedUrls = await Promise.all(
+        (data || []).map(async (view) => {
+          const rawUrls: string[] = view.viewer?.profile_picture_urls || [];
+          const signedUrls = await getSignedUrls(rawUrls);
+          
+          return {
+            ...view,
+            profile: {
+              ...view.viewer,
+              profile_picture_urls: signedUrls,
+            }
+          };
+        })
+      );
+
       const viewsWithProfiles = data.map(view => ({
         ...view,
         profile: view.viewer
       }));
 
-      setProfileViews(viewsWithProfiles);
+      setProfileViews(viewsWithSignedUrls);
     } catch (error) {
       console.error('Error loading profile views:', error);
     } finally {
