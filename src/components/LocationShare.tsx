@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -33,6 +33,9 @@ const LocationShare = ({ connectionId }: LocationShareProps) => {
   const [locations, setLocations] = useState<LocationShare[]>([]);
   const [sharing, setSharing] = useState(false);
   const [userLocation, setUserLocation] = useState<LocationShare | null>(null);
+  const [isMapOpen, setIsMapOpen] = useState(false);
+  const locationUpdateInterval = useRef<NodeJS.Timeout | null>(null);
+  const watchId = useRef<number | null>(null);
 
   console.log(locations)
 
@@ -52,6 +55,107 @@ const LocationShare = ({ connectionId }: LocationShareProps) => {
       subscription.unsubscribe();
     };
   }, [connectionId]);
+
+  // Auto-update location every 5 seconds when sharing
+  useEffect(() => {
+    if (userLocation && !sharing) {
+      startLocationUpdates();
+    } else {
+      stopLocationUpdates();
+    }
+
+    return () => {
+      stopLocationUpdates();
+    };
+  }, [userLocation, sharing]);
+
+  const startLocationUpdates = () => {
+    if (locationUpdateInterval.current) return;
+
+    // Update location every 5 seconds
+    locationUpdateInterval.current = setInterval(() => {
+      updateCurrentLocation();
+    }, 5000);
+
+    // Also start continuous watching for more frequent updates
+    if ('geolocation' in navigator) {
+      watchId.current = navigator.geolocation.watchPosition(
+        (position) => {
+          updateLocationInDatabase(position.coords.latitude, position.coords.longitude);
+        },
+        (error) => {
+          console.error('Error watching location:', error);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 5000
+        }
+      );
+    }
+  };
+
+  const stopLocationUpdates = () => {
+    if (locationUpdateInterval.current) {
+      clearInterval(locationUpdateInterval.current);
+      locationUpdateInterval.current = null;
+    }
+
+    if (watchId.current !== null) {
+      navigator.geolocation.clearWatch(watchId.current);
+      watchId.current = null;
+    }
+  };
+
+  const updateCurrentLocation = () => {
+    if (!user || !userLocation) return;
+
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          updateLocationInDatabase(position.coords.latitude, position.coords.longitude);
+        },
+        (error) => {
+          console.error('Error getting current location:', error);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 5000
+        }
+      );
+    }
+  };
+
+  const updateLocationInDatabase = async (latitude: number, longitude: number) => {
+    if (!user || !userLocation) return;
+
+    try {
+      // Set expiration to 24 hours from now
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 24);
+
+      const { error } = await supabase
+        .from('location_shares')
+        .upsert({
+          user_id: user.id,
+          connection_id: connectionId,
+          latitude,
+          longitude,
+          expires_at: expiresAt.toISOString()
+        }, {
+          onConflict: 'user_id,connection_id'
+        });
+
+      if (error) {
+        console.error('Error updating location:', error);
+      } else {
+        console.log('Location updated successfully');
+      }
+    } catch (error) {
+      console.error('Error updating location:', error);
+    }
+  };
 
   const fetchLocations = async () => {
     const { data, error } = await supabase
@@ -130,6 +234,10 @@ const LocationShare = ({ connectionId }: LocationShareProps) => {
         }, (error) => {
           console.error('Error getting location:', error);
           setSharing(false);
+        }, {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 5000
         });
       } else {
         console.error('Geolocation not supported');
@@ -185,10 +293,25 @@ const LocationShare = ({ connectionId }: LocationShareProps) => {
           <div className="flex items-center gap-2">
             <MapPin className="h-4 w-4" />
             Live Locations
+            {userLocation && (
+              <div className="flex items-center gap-1 text-xs text-green-600">
+                <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse"></div>
+                Auto-updating
+              </div>
+            )}
           </div>
           {locations.length > 0 && (
-            <LocationMap locations={locations}>
-              <Button variant="ghost" size="sm" className="text-xs">
+            <LocationMap 
+              locations={locations}
+              isOpen={isMapOpen}
+              onClose={() => setIsMapOpen(false)}
+            >
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="text-xs"
+                onClick={() => setIsMapOpen(true)}
+              >
                 <Map className="h-3 w-3 mr-1" />
                 View Map
               </Button>

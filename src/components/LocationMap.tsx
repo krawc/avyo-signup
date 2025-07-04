@@ -24,7 +24,7 @@ interface LocationShare {
 }
 
 interface LocationMapProps {
-  isOpen: boolean,
+  isOpen: boolean;
   onClose: () => void;
   locations: LocationShare[];
   children: React.ReactNode;
@@ -36,14 +36,10 @@ const LocationMap = ({ isOpen, onClose, locations, children }: LocationMapProps)
   const [mapboxToken, setMapboxToken] = useState('pk.eyJ1Ijoia3Jhd2MiLCJhIjoiY2xtdWp3ZzViMGpjeTJrb2NtaHVuZWl1biJ9.xCUOYkJHjQ2oEWBzBqc66w');
   const [isMapReady, setIsMapReady] = useState(false);
   const [showTokenInput, setShowTokenInput] = useState(false);
-  //const [dialogOpen, setDialogOpen] = useState(true);
   const markers = useRef<mapboxgl.Marker[]>([]);
 
   useEffect(() => {
-    // Check if token exists in localStorage
-    // const savedToken = localStorage.getItem('mapbox_token');
     if (mapboxToken) {
-      // setMapboxToken(savedToken);
       setIsMapReady(true);
     } else {
       setShowTokenInput(true);
@@ -51,9 +47,6 @@ const LocationMap = ({ isOpen, onClose, locations, children }: LocationMapProps)
   }, []);
 
   const initializeMap = () => {
-
-    console.log(mapContainer.current, mapboxToken)
-
     if (!mapContainer.current || !mapboxToken) return;
 
     console.log('initializeMap running')
@@ -69,8 +62,6 @@ const LocationMap = ({ isOpen, onClose, locations, children }: LocationMapProps)
       });
 
       console.log('got the map')
-
-      console.log(map)
 
       map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
       
@@ -152,7 +143,7 @@ const LocationMap = ({ isOpen, onClose, locations, children }: LocationMapProps)
             <div style="text-align: center; padding: 5px;">
               <strong>${getDisplayName(location.profiles)}</strong>
               <br/>
-              <small>Shared ${new Date(location.created_at).toLocaleTimeString()}</small>
+              <small>Updated ${new Date(location.created_at).toLocaleTimeString()}</small>
             </div>
           `))
         .addTo(map.current!);
@@ -170,8 +161,9 @@ const LocationMap = ({ isOpen, onClose, locations, children }: LocationMapProps)
     }
   };
 
+  // Update markers when locations change
   useEffect(() => {
-    if (isMapReady) {
+    if (isMapReady && map.current) {
       updateMarkers();
     }
   }, [locations, isMapReady]);
@@ -183,7 +175,7 @@ const LocationMap = ({ isOpen, onClose, locations, children }: LocationMapProps)
         if (mapContainer.current) {
           initializeMap();
         }
-      }, 50); // 50ms is usually enough
+      }, 50);
     }
   }, [isOpen]);
 
@@ -198,14 +190,10 @@ const LocationMap = ({ isOpen, onClose, locations, children }: LocationMapProps)
             <DialogTitle className="flex items-center gap-2">
               <MapPin className="h-5 w-5" />
               Live Locations Map
+              <span className="text-sm text-muted-foreground">
+                (Updates every 5 seconds)
+              </span>
             </DialogTitle>
-            {/* <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowTokenInput(true)}
-            >
-              <Settings className="h-4 w-4" />
-            </Button> */}
           </div>
         </DialogHeader>
 
@@ -234,11 +222,9 @@ const LocationMap = ({ isOpen, onClose, locations, children }: LocationMapProps)
           </div>
         )}
 
-
         <div className="relative h-[500px]">
           <div ref={mapContainer} className="w-full h-full" />
         </div>
-
 
         {locations.length === 0 && isMapReady && (
           <div className="absolute inset-0 flex items-center justify-center bg-white/80">
