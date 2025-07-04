@@ -13,6 +13,7 @@ const Auth = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true);
+  const [isMagicLink, setIsMagicLink] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
@@ -46,6 +47,34 @@ const Auth = () => {
         description: "You have been logged in successfully.",
       });
       navigate('/');
+    }
+    setLoading(false);
+  };
+
+  const handleMagicLink = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    const redirectUrl = `${window.location.origin}/`;
+    
+    const { error } = await supabase.auth.signInWithOtp({
+      email: formData.email,
+      options: {
+        emailRedirectTo: redirectUrl,
+      }
+    });
+
+    if (error) {
+      toast({
+        title: "Magic link failed",
+        description: error.message,
+        variant: "destructive"
+      });
+    } else {
+      toast({
+        title: "Check your email!",
+        description: "We've sent you a magic link to log in.",
+      });
     }
     setLoading(false);
   };
@@ -111,12 +140,15 @@ const Auth = () => {
                 <CardTitle className="text-2xl">AVYO In-Gathering</CardTitle>
               </div>
               <CardDescription>
-                {isLogin ? 'Welcome back to our community' : 'Join our Christian community'}
+                {isLogin 
+                  ? (isMagicLink ? 'Sign in with a magic link' : 'Welcome back to our community')
+                  : 'Join our Christian community'
+                }
               </CardDescription>
             </CardHeader>
             
             <CardContent>
-              <form onSubmit={isLogin ? handleLogin : handleSignup} className="space-y-4">
+              <form onSubmit={isLogin ? (isMagicLink ? handleMagicLink : handleLogin) : handleSignup} className="space-y-4">
                 {!isLogin && (
                   <>
                     <div className="grid grid-cols-2 gap-4">
@@ -165,46 +197,65 @@ const Auth = () => {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      id="password"
-                      type="password"
-                      value={formData.password}
-                      onChange={(e) => handleInputChange('password', e.target.value)}
-                      placeholder="••••••••"
-                      className="bg-white/50 border-white/20 pl-10"
-                      required
-                      minLength={6}
-                    />
+                {(!isLogin || !isMagicLink) && (
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Password</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="password"
+                        type="password"
+                        value={formData.password}
+                        onChange={(e) => handleInputChange('password', e.target.value)}
+                        placeholder="••••••••"
+                        className="bg-white/50 border-white/20 pl-10"
+                        required
+                        minLength={6}
+                      />
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <Button 
                   type="submit"
                   className="w-full text-lg py-6 bg-primary hover:bg-primary/90 transition-all duration-300"
                   disabled={loading}
                 >
-                  {loading ? 'Please wait...' : (isLogin ? 'Sign In' : 'Create Account')}
+                  {loading ? 'Please wait...' : (
+                    isLogin ? (isMagicLink ? 'Send Magic Link' : 'Sign In') : 'Create Account'
+                  )}
                 </Button>
               </form>
 
               <div className="mt-6 text-center space-y-4">
                 {isLogin && (
-                  <Button
-                    variant="link"
-                    onClick={() => navigate('/password-reset')}
-                    className="text-sm text-muted-foreground hover:text-primary"
-                  >
-                    Forgot your password?
-                  </Button>
+                  <>
+                    <Button
+                      variant="link"
+                      onClick={() => setIsMagicLink(!isMagicLink)}
+                      className="text-sm text-muted-foreground hover:text-primary"
+                    >
+                      {isMagicLink ? 'Sign in with password instead' : 'Sign in with magic link'}
+                    </Button>
+                    
+                    {!isMagicLink && (
+                      <Button
+                        variant="link"
+                        onClick={() => navigate('/password-reset')}
+                        className="text-sm text-muted-foreground hover:text-primary"
+                      >
+                        Forgot your password?
+                      </Button>
+                    )}
+                  </>
                 )}
                 
                 <Button
                   variant="link"
-                  onClick={() => setIsLogin(!isLogin)}
+                  onClick={() => {
+                    setIsLogin(!isLogin);
+                    setIsMagicLink(false);
+                  }}
                   className="w-full text-sm text-muted-foreground hover:text-primary"
                 >
                   {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
