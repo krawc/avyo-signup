@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -48,6 +47,45 @@ const PreviousMatches = ({ eventId, onInteractionAttempt }: PreviousMatchesProps
       loadPreviousMatches();
     }
   }, [eventId, user]);
+
+  // Set up real-time subscription for match responses
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('match-responses-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'match_responses',
+          filter: `user_id=eq.${user.id},event_id=eq.${eventId}`
+        },
+        () => {
+          console.log('New match response detected, reloading previous matches');
+          loadPreviousMatches();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'match_responses',
+          filter: `user_id=eq.${user.id},event_id=eq.${eventId}`
+        },
+        () => {
+          console.log('Match response updated, reloading previous matches');
+          loadPreviousMatches();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, eventId]);
 
   const loadPreviousMatches = async () => {
     if (!user) return;
