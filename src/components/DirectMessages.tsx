@@ -225,13 +225,19 @@ const DirectMessages = ({ eventId, onInteractionAttempt }: DirectMessagesProps) 
   };
 
   const shareLocation = async () => {
+    console.log('clicked shareLoc')
     if (!selectedConnection || !user) return;
+    console.log('worked')
 
     try {
       if (navigator.geolocation) {
+
+        console.log('nav geo present')
+
         navigator.geolocation.getCurrentPosition(async (position) => {
           const { latitude, longitude } = position.coords;
-          
+          console.log(latitude, longitude)
+
           const expiresAt = new Date();
           expiresAt.setHours(expiresAt.getHours() + 1);
 

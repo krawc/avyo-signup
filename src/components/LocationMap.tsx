@@ -163,7 +163,7 @@ const LocationMap = ({ isOpen, onClose, locations, children }: LocationMapProps)
 
   // Update markers when locations change
   useEffect(() => {
-    if (isMapReady && map.current) {
+    if (isMapReady) {
       updateMarkers();
     }
   }, [locations, isMapReady]);

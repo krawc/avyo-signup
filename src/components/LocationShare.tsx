@@ -59,6 +59,7 @@ const LocationShare = ({ connectionId }: LocationShareProps) => {
   // Auto-update location every 5 seconds when sharing
   useEffect(() => {
     if (userLocation && !sharing) {
+      console.log('start loca updates')
       startLocationUpdates();
     } else {
       stopLocationUpdates();
@@ -70,7 +71,11 @@ const LocationShare = ({ connectionId }: LocationShareProps) => {
   }, [userLocation, sharing]);
 
   const startLocationUpdates = () => {
+
+    console.log('geo pre interval')
     if (locationUpdateInterval.current) return;
+
+    console.log('geo post interval')
 
     // Update location every 5 seconds
     locationUpdateInterval.current = setInterval(() => {
@@ -79,6 +84,7 @@ const LocationShare = ({ connectionId }: LocationShareProps) => {
 
     // Also start continuous watching for more frequent updates
     if ('geolocation' in navigator) {
+      console.log('geo present')
       watchId.current = navigator.geolocation.watchPosition(
         (position) => {
           updateLocationInDatabase(position.coords.latitude, position.coords.longitude);
@@ -92,6 +98,9 @@ const LocationShare = ({ connectionId }: LocationShareProps) => {
           maximumAge: 5000
         }
       );
+    } else {
+      console.log('geo not present')
+
     }
   };
 
@@ -132,6 +141,8 @@ const LocationShare = ({ connectionId }: LocationShareProps) => {
 
     try {
       // Set expiration to 24 hours from now
+
+      console.log(latitude,longitude)
       const expiresAt = new Date();
       expiresAt.setHours(expiresAt.getHours() + 24);
 
