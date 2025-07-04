@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -9,6 +10,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { MessageCircle, Send, User, MapPin } from 'lucide-react';
 import TermsAndConditions from './TermsAndConditions';
 import LocationMap from './LocationMap';
+import LocationShare from './LocationShare';
 import { useTermsAcceptance } from '@/hooks/useTermsAcceptance';
 import UserActionsDropdown from './UserActionsDropdown'
 
@@ -62,12 +64,10 @@ const DirectMessages = ({ eventId, onInteractionAttempt }: DirectMessagesProps) 
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [showTerms, setShowTerms] = useState(false);
-  const [showLocationTerms, setShowLocationTerms] = useState(false);
   const [activeLocations, setActiveLocations] = useState<LocationShare[]>([]);
   const [showLocationMap, setShowLocationMap] = useState(false);
   
   const { hasAccepted: hasAcceptedMessaging, loading: messagingTermsLoading, markAsAccepted: markMessagingAccepted } = useTermsAcceptance('messaging');
-  const { hasAccepted: hasAcceptedLocation, loading: locationTermsLoading, markAsAccepted: markLocationAccepted } = useTermsAcceptance('location_sharing');
 
   useEffect(() => {
     if (user) {
@@ -216,63 +216,6 @@ const DirectMessages = ({ eventId, onInteractionAttempt }: DirectMessagesProps) 
     }
   };
 
-  const handleLocationShare = () => {
-    if (hasAcceptedLocation === false) {
-      setShowLocationTerms(true);
-    } else {
-      shareLocation();
-    }
-  };
-
-  const shareLocation = async () => {
-    console.log('clicked shareLoc')
-    if (!selectedConnection || !user) return;
-    console.log('worked')
-
-    try {
-      if (navigator.geolocation) {
-
-        console.log('nav geo present')
-
-        navigator.geolocation.getCurrentPosition(async (position) => {
-          const { latitude, longitude } = position.coords;
-          console.log(latitude, longitude)
-
-          const expiresAt = new Date();
-          expiresAt.setHours(expiresAt.getHours() + 1);
-
-          const { error } = await supabase
-          .from('location_shares')
-          .upsert({
-            connection_id: selectedConnection.id,
-            user_id: user.id,
-            latitude,
-            longitude,
-            expires_at: expiresAt.toISOString()
-          }, {
-            onConflict: ['user_id', 'connection_id'] // 🔑 specify the conflict key
-          });
-        
-          if (error) throw error;
-          
-          await supabase
-            .from('direct_messages')
-            .upsert({
-              connection_id: selectedConnection.id,
-              sender_id: user.id,
-              message: '📍 I shared my location with you for the next hour.'
-            });
-
-          loadActiveLocations();
-        }, (error) => {
-          console.error('Error getting location:', error);
-        });
-      }
-    } catch (error) {
-      console.error('Error sharing location:', error);
-    }
-  };
-
   const sendMessage = async () => {
     if (onInteractionAttempt) {
       onInteractionAttempt();
@@ -312,8 +255,6 @@ const DirectMessages = ({ eventId, onInteractionAttempt }: DirectMessagesProps) 
   };
 
   const handleLocationClick = () => {
-    //console.log(showLocationMap)
-    
     setShowLocationMap(true);
   };
 
@@ -446,11 +387,10 @@ const DirectMessages = ({ eventId, onInteractionAttempt }: DirectMessagesProps) 
                         {getDisplayName(selectedConnection.profile)}
                       </h3>
                     </div>
-                    {/* Add report dropdown in message header */}
-                      <UserActionsDropdown 
-                        userId={selectedConnection.profile?.id || ''} 
-                        userName={getDisplayName(selectedConnection.profile)}
-                      />
+                    <UserActionsDropdown 
+                      userId={selectedConnection.profile?.id || ''} 
+                      userName={getDisplayName(selectedConnection.profile)}
+                    />
                   </div>
 
                   {/* Messages List */}
@@ -474,9 +414,6 @@ const DirectMessages = ({ eventId, onInteractionAttempt }: DirectMessagesProps) 
                         onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
                         className="text-sm"
                       />
-                      <Button onClick={handleLocationShare} size="sm" variant="outline">
-                        <MapPin className="h-3 w-3 md:h-4 md:w-4" />
-                      </Button>
                       <Button onClick={sendMessage} size="sm">
                         <Send className="h-3 w-3 md:h-4 md:w-4" />
                       </Button>
@@ -491,16 +428,14 @@ const DirectMessages = ({ eventId, onInteractionAttempt }: DirectMessagesProps) 
             </CardContent>
           </Card>
         </div>
-      </div>
 
-      {/* Terms and Conditions Overlays
-      {showBlur && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/20 z-10">
-          <Button onClick={handleMessagingAccess} className="bg-primary hover:bg-primary/90">
-            Read Terms and Conditions
-          </Button>
-        </div>
-      )} */}
+        {/* Location Share Component - now integrated properly */}
+        {selectedConnection && (
+          <div className="mt-4">
+            <LocationShare connectionId={selectedConnection.id} />
+          </div>
+        )}
+      </div>
 
       <TermsAndConditions
         isOpen={showTerms}
@@ -512,23 +447,13 @@ const DirectMessages = ({ eventId, onInteractionAttempt }: DirectMessagesProps) 
         termsType="messaging"
       />
 
-      <TermsAndConditions
-        isOpen={showLocationTerms}
-        onClose={() => setShowLocationTerms(false)}
-        onAccept={() => {
-          markLocationAccepted();
-          setShowLocationTerms(false);
-          shareLocation();
-        }}
-        termsType="location_sharing"
-      />
-
-        <LocationMap
-         isOpen={showLocationMap}
-         onClose={() => setShowLocationMap(false)}
-         locations={activeLocations}>
-          <div />
-        </LocationMap>
+      <LocationMap
+        isOpen={showLocationMap}
+        onClose={() => setShowLocationMap(false)}
+        locations={activeLocations}
+      >
+        <div />
+      </LocationMap>
     </>
   );
 };
