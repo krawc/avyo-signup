@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -45,6 +44,8 @@ const LocationMap = ({ isOpen, onClose, locations, connectionId, children }: Loc
   const locationUpdateInterval = useRef<NodeJS.Timeout | null>(null);
   const watchId = useRef<number | null>(null);
   const [isSharing, setIsSharing] = useState(false);
+  const [hasUserInteracted, setHasUserInteracted] = useState(false);
+  const [initialFitDone, setInitialFitDone] = useState(false);
 
   useEffect(() => {
     if (mapboxToken) {
@@ -227,6 +228,12 @@ const LocationMap = ({ isOpen, onClose, locations, connectionId, children }: Loc
 
       map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
       
+      // Track user interactions to prevent auto-zoom when user is actively using the map
+      map.current.on('dragstart', () => setHasUserInteracted(true));
+      map.current.on('zoomstart', () => setHasUserInteracted(true));
+      map.current.on('pitchstart', () => setHasUserInteracted(true));
+      map.current.on('rotatestart', () => setHasUserInteracted(true));
+      
       map.current.on('load', () => {
         console.log('Map loaded');
         setIsMapReady(true);
@@ -256,8 +263,6 @@ const LocationMap = ({ isOpen, onClose, locations, connectionId, children }: Loc
     markers.current = [];
 
     if (realTimeLocations.length === 0) return;
-
-    const bounds = new mapboxgl.LngLatBounds();
 
     realTimeLocations.forEach((location) => {
       const getDisplayName = (profile: any) => {
@@ -337,15 +342,33 @@ const LocationMap = ({ isOpen, onClose, locations, connectionId, children }: Loc
         .addTo(map.current!);
 
       markers.current.push(marker);
-      bounds.extend([Number(location.longitude), Number(location.latitude)]);
     });
 
-    // Fit map to show all markers
-    if (realTimeLocations.length > 1) {
-      map.current.fitBounds(bounds, { padding: 50 });
-    } else if (realTimeLocations.length === 1) {
-      map.current.setCenter([Number(realTimeLocations[0].longitude), Number(realTimeLocations[0].latitude)]);
-      map.current.setZoom(14);
+    // Only fit bounds on initial load or when user hasn't interacted with the map recently
+    if (!initialFitDone || (!hasUserInteracted && realTimeLocations.length > 0)) {
+      const bounds = new mapboxgl.LngLatBounds();
+      
+      realTimeLocations.forEach((location) => {
+        bounds.extend([Number(location.longitude), Number(location.latitude)]);
+      });
+
+      if (realTimeLocations.length > 1) {
+        map.current.fitBounds(bounds, { padding: 50 });
+      } else if (realTimeLocations.length === 1) {
+        map.current.setCenter([Number(realTimeLocations[0].longitude), Number(realTimeLocations[0].latitude)]);
+        if (!initialFitDone) {
+          map.current.setZoom(14);
+        }
+      }
+      
+      if (!initialFitDone) {
+        setInitialFitDone(true);
+      }
+      
+      // Reset user interaction flag after a delay
+      if (hasUserInteracted) {
+        setTimeout(() => setHasUserInteracted(false), 10000); // Reset after 10 seconds of no interaction
+      }
     }
   };
 
@@ -358,6 +381,10 @@ const LocationMap = ({ isOpen, onClose, locations, connectionId, children }: Loc
 
   useEffect(() => {
     if (isOpen) {
+      // Reset interaction state when map opens
+      setHasUserInteracted(false);
+      setInitialFitDone(false);
+      
       // Wait a tick to let the DOM paint the dialog
       setTimeout(() => {
         if (mapContainer.current) {
@@ -387,7 +414,11 @@ const LocationMap = ({ isOpen, onClose, locations, connectionId, children }: Loc
       }
     `;
     document.head.appendChild(style);
-    return () => document.head.removeChild(style);
+    return () => {
+      if (document.head.contains(style)) {
+        document.head.removeChild(style);
+      }
+    };
   }, []);
 
   return (
