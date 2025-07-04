@@ -27,6 +27,40 @@ interface EventMatchesProps {
   onInteractionAttempt?: () => void;
 }
 
+// Placeholder matches for events with no participants
+const createPlaceholderMatches = (): Match[] => [
+  {
+    user_id: 'placeholder-1',
+    profile: {
+      first_name: 'Sarah',
+      last_name: 'M.',
+      display_name: 'Sarah M.',
+      profile_picture_urls: ['https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face']
+    },
+    compatibility_score: 92
+  },
+  {
+    user_id: 'placeholder-2',
+    profile: {
+      first_name: 'Michael',
+      last_name: 'K.',
+      display_name: 'Michael K.',
+      profile_picture_urls: ['https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face']
+    },
+    compatibility_score: 88
+  },
+  {
+    user_id: 'placeholder-3',
+    profile: {
+      first_name: 'Jessica',
+      last_name: 'L.',
+      display_name: 'Jessica L.',
+      profile_picture_urls: ['https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=face']
+    },
+    compatibility_score: 85
+  }
+];
+
 const EventMatches = ({ eventId, onInteractionAttempt }: EventMatchesProps) => {
   const { user } = useAuth();
   const [topMatches, setTopMatches] = useState<Match[]>([]);
@@ -36,6 +70,7 @@ const EventMatches = ({ eventId, onInteractionAttempt }: EventMatchesProps) => {
     show: boolean;
     match: Match | null;
   }>({ show: false, match: null });
+  const [showPlaceholders, setShowPlaceholders] = useState(false);
 
   useEffect(() => {
     console.log(eventId, user)
@@ -80,7 +115,25 @@ const EventMatches = ({ eventId, onInteractionAttempt }: EventMatchesProps) => {
       );
 
       console.log('Loaded matches:', matchesWithSignedUrls.length);
-      setTopMatches(matchesWithSignedUrls);
+      
+      // If no real matches, check if event has very few participants and show placeholders
+      if (matchesWithSignedUrls.length === 0) {
+        const { data: attendeeCount } = await supabase
+          .from('event_attendees')
+          .select('id', { count: 'exact' })
+          .eq('event_id', eventId);
+        
+        // Show placeholders if event has 3 or fewer attendees (including current user)
+        if (!attendeeCount || attendeeCount.length <= 3) {
+          setShowPlaceholders(true);
+          setTopMatches(createPlaceholderMatches());
+        } else {
+          setTopMatches([]);
+        }
+      } else {
+        setTopMatches(matchesWithSignedUrls);
+        setShowPlaceholders(false);
+      }
     } catch (error) {
       console.error('Error loading matches:', error);
     } finally {
@@ -89,8 +142,11 @@ const EventMatches = ({ eventId, onInteractionAttempt }: EventMatchesProps) => {
   };
 
   const handleMatchResponse = async (targetUserId: string, response: 'yes' | 'no') => {
-    if (onInteractionAttempt) {
-      onInteractionAttempt();
+    // For placeholder matches, always trigger payment
+    if (targetUserId.startsWith('placeholder-') || onInteractionAttempt) {
+      if (onInteractionAttempt) {
+        onInteractionAttempt();
+      }
       return;
     }
 
@@ -147,6 +203,11 @@ const EventMatches = ({ eventId, onInteractionAttempt }: EventMatchesProps) => {
               <CardTitle className="flex items-center gap-2 text-base md:text-lg">
                 <Heart className="h-4 w-4 md:h-5 md:w-5 text-pink-500" />
                 Your Potential Matches
+                {showPlaceholders && (
+                  <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full ml-2">
+                    Preview
+                  </span>
+                )}
               </CardTitle>
               <Button 
                 variant="outline" 
@@ -160,37 +221,50 @@ const EventMatches = ({ eventId, onInteractionAttempt }: EventMatchesProps) => {
             </div>
           </CardHeader>
           <CardContent>
-            {topMatches.length === 0 ? (
+            {topMatches.length === 0 && !showPlaceholders ? (
               <div className="text-center py-8">
                 <Users className="h-8 w-8 md:h-12 md:w-12 mx-auto mb-4 text-muted-foreground" />
                 <h3 className="text-base md:text-lg font-semibold mb-2">No matches yet</h3>
                 <p className="text-muted-foreground text-sm">Check back soon for potential connections!</p>
               </div>
             ) : (
-              <MatchesTable 
-                eventId={eventId}
-                excludeUserIds={[]}
-                onMatchResponse={handleMatchResponse}
-              />
+              <>
+                {showPlaceholders && (
+                  <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-sm text-blue-800">
+                      <strong>Preview:</strong> These are example profiles to show you what matches will look like. 
+                      Real matches will appear as more people join this event!
+                    </p>
+                  </div>
+                )}
+                <MatchesTable 
+                  eventId={eventId}
+                  excludeUserIds={[]}
+                  onMatchResponse={handleMatchResponse}
+                  matches={topMatches}
+                />
+              </>
             )}
           </CardContent>
         </Card>
 
-        {/* Previous Matches */}
-        <Card className="gradient-card border-0 shadow-lg">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base md:text-lg">
-              <Clock className="h-4 w-4 md:h-5 md:w-5 text-blue-500" />
-              Previous Matches
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <PreviousMatches 
-              eventId={eventId}
-              onInteractionAttempt={onInteractionAttempt}
-            />
-          </CardContent>
-        </Card>
+        {/* Previous Matches - only show if not using placeholders */}
+        {!showPlaceholders && (
+          <Card className="gradient-card border-0 shadow-lg">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+                <Clock className="h-4 w-4 md:h-5 md:w-5 text-blue-500" />
+                Previous Matches
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <PreviousMatches 
+                eventId={eventId}
+                onInteractionAttempt={onInteractionAttempt}
+              />
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Match Overlay */}
@@ -213,6 +287,5 @@ const EventMatches = ({ eventId, onInteractionAttempt }: EventMatchesProps) => {
     </>
   );
 };
-
 
 export default EventMatches;

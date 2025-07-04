@@ -16,15 +16,15 @@ interface Match {
     last_name: string | null;
     display_name: string | null;
     profile_picture_urls: string[] | null;
-    age_range: string | null;
-    city: string | null;
-    state: string | null;
-    gender: string | null;
-    church_name: string | null;
-    marital_status: string | null;
-    has_kids: string | null;
-    pastor_name: string | null;
-    life_verse: string | null;
+    age_range?: string | null;
+    city?: string | null;
+    state?: string | null;
+    gender?: string | null;
+    church_name?: string | null;
+    marital_status?: string | null;
+    has_kids?: string | null;
+    pastor_name?: string | null;
+    life_verse?: string | null;
   };
   compatibility_score: number;
 }
@@ -90,6 +90,13 @@ const MatchesTable = ({ eventId, excludeUserIds, onMatchResponse, matches: propM
   };
 
   const handleViewProfile = (match: Match) => {
+    // Don't show profile popup for placeholder matches
+    if (match.user_id.startsWith('placeholder-')) {
+      // Just trigger the payment flow instead
+      onMatchResponse(match.user_id, 'yes');
+      return;
+    }
+    
     setSelectedMatch(match);
     setShowProfilePopup(true);
   };
@@ -113,6 +120,7 @@ const MatchesTable = ({ eventId, excludeUserIds, onMatchResponse, matches: propM
     return profile.first_name || 'Anonymous User';
   };
 
+  const isPlaceholder = (match: Match) => match.user_id.startsWith('placeholder-');
 
   if (loading) {
     return (
@@ -153,11 +161,16 @@ const MatchesTable = ({ eventId, excludeUserIds, onMatchResponse, matches: propM
                 <Badge variant="secondary" className="text-xs">
                   {match.compatibility_score}% match
                 </Badge>
+                {isPlaceholder(match) && (
+                  <Badge variant="outline" className="text-xs text-blue-600 border-blue-300">
+                    Preview
+                  </Badge>
+                )}
               </div>
               <p className="text-xs md:text-sm text-muted-foreground">
                 {match.profile?.city && match.profile?.state 
                   ? `${match.profile.city}, ${match.profile.state}` 
-                  : 'Location not specified'}
+                  : (isPlaceholder(match) ? 'Your Area' : 'Location not specified')}
               </p>
             </div>
             
@@ -169,7 +182,9 @@ const MatchesTable = ({ eventId, excludeUserIds, onMatchResponse, matches: propM
                 className="px-2 md:px-3"
               >
                 <Eye className="h-3 w-3 md:h-4 md:w-4 md:mr-1" />
-                <span className="hidden md:inline">View</span>
+                <span className="hidden md:inline">
+                  {isPlaceholder(match) ? 'Connect' : 'View'}
+                </span>
               </Button>
               <Button
                 variant="outline"
@@ -191,13 +206,16 @@ const MatchesTable = ({ eventId, excludeUserIds, onMatchResponse, matches: propM
         ))}
       </div>
 
-      <ProfileViewPopup
-        match={selectedMatch}
-        isOpen={showProfilePopup}
-        onClose={handleProfilePopupClose}
-        onMatchResponse={handleMatchResponseFromPopup}
-        eventId={eventId}
-      />
+      {/* Only show profile popup for real matches, not placeholders */}
+      {selectedMatch && !isPlaceholder(selectedMatch) && (
+        <ProfileViewPopup
+          match={selectedMatch}
+          isOpen={showProfilePopup}
+          onClose={handleProfilePopupClose}
+          onMatchResponse={handleMatchResponseFromPopup}
+          eventId={eventId}
+        />
+      )}
     </>
   );
 };
