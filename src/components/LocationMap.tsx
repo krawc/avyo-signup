@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MapPin, Settings } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface LocationShare {
   id: string;
@@ -27,16 +29,22 @@ interface LocationMapProps {
   isOpen: boolean;
   onClose: () => void;
   locations: LocationShare[];
+  connectionId: string;
   children: React.ReactNode;
 }
 
-const LocationMap = ({ isOpen, onClose, locations, children }: LocationMapProps) => {
+const LocationMap = ({ isOpen, onClose, locations, connectionId, children }: LocationMapProps) => {
+  const { user } = useAuth();
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const [mapboxToken, setMapboxToken] = useState('pk.eyJ1Ijoia3Jhd2MiLCJhIjoiY2xtdWp3ZzViMGpjeTJrb2NtaHVuZWl1biJ9.xCUOYkJHjQ2oEWBzBqc66w');
   const [isMapReady, setIsMapReady] = useState(false);
   const [showTokenInput, setShowTokenInput] = useState(false);
+  const [realTimeLocations, setRealTimeLocations] = useState<LocationShare[]>([]);
   const markers = useRef<mapboxgl.Marker[]>([]);
+  const locationUpdateInterval = useRef<NodeJS.Timeout | null>(null);
+  const watchId = useRef<number | null>(null);
+  const [isSharing, setIsSharing] = useState(false);
 
   useEffect(() => {
     if (mapboxToken) {
@@ -46,10 +54,166 @@ const LocationMap = ({ isOpen, onClose, locations, children }: LocationMapProps)
     }
   }, []);
 
+  // Start real-time location updates when map is open
+  useEffect(() => {
+    if (isOpen && connectionId && user) {
+      console.log('Starting real-time location updates');
+      startLocationUpdates();
+      
+      // Set up real-time subscription for location changes
+      const channel = supabase
+        .channel('location-realtime')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'location_shares',
+            filter: `connection_id=eq.${connectionId}`
+          },
+          () => {
+            console.log('Location change detected, reloading');
+            loadLocations();
+          }
+        )
+        .subscribe();
+
+      return () => {
+        console.log('Stopping location updates');
+        stopLocationUpdates();
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [isOpen, connectionId, user]);
+
+  const startLocationUpdates = () => {
+    console.log('Starting location updates');
+    
+    // Initial load
+    loadLocations();
+    
+    // Update location every 5 seconds
+    locationUpdateInterval.current = setInterval(() => {
+      updateCurrentLocation();
+      loadLocations();
+    }, 5000);
+
+    // Start continuous watching for more frequent updates
+    if ('geolocation' in navigator) {
+      console.log('Starting geolocation watch');
+      watchId.current = navigator.geolocation.watchPosition(
+        (position) => {
+          console.log('Position update:', position.coords.latitude, position.coords.longitude);
+          updateLocationInDatabase(position.coords.latitude, position.coords.longitude);
+        },
+        (error) => {
+          console.error('Error watching location:', error);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 5000
+        }
+      );
+    }
+  };
+
+  const stopLocationUpdates = () => {
+    if (locationUpdateInterval.current) {
+      clearInterval(locationUpdateInterval.current);
+      locationUpdateInterval.current = null;
+    }
+
+    if (watchId.current !== null) {
+      navigator.geolocation.clearWatch(watchId.current);
+      watchId.current = null;
+    }
+  };
+
+  const updateCurrentLocation = () => {
+    if (!user || !connectionId) return;
+
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          console.log('Updating location:', position.coords.latitude, position.coords.longitude);
+          updateLocationInDatabase(position.coords.latitude, position.coords.longitude);
+        },
+        (error) => {
+          console.error('Error getting current location:', error);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 1000
+        }
+      );
+    }
+  };
+
+  const updateLocationInDatabase = async (latitude: number, longitude: number) => {
+    if (!user || !connectionId) return;
+
+    try {
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 24);
+
+      const { error } = await supabase
+        .from('location_shares')
+        .upsert({
+          user_id: user.id,
+          connection_id: connectionId,
+          latitude,
+          longitude,
+          expires_at: expiresAt.toISOString()
+        }, {
+          onConflict: 'user_id,connection_id'
+        });
+
+      if (error) {
+        console.error('Error updating location:', error);
+      } else {
+        console.log('Location updated successfully');
+      }
+    } catch (error) {
+      console.error('Error updating location:', error);
+    }
+  };
+
+  const loadLocations = async () => {
+    if (!connectionId) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('location_shares')
+        .select(`
+          *,
+          profiles (
+            first_name,
+            last_name,
+            display_name,
+            profile_picture_urls
+          )
+        `)
+        .eq('connection_id', connectionId)
+        .gt('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error loading locations:', error);
+      } else {
+        console.log('Loaded locations:', data?.length || 0);
+        setRealTimeLocations(data || []);
+      }
+    } catch (error) {
+      console.error('Error loading locations:', error);
+    }
+  };
+
   const initializeMap = () => {
     if (!mapContainer.current || !mapboxToken) return;
 
-    console.log('initializeMap running')
+    console.log('Initializing map');
 
     try {
       mapboxgl.accessToken = mapboxToken;
@@ -61,11 +225,10 @@ const LocationMap = ({ isOpen, onClose, locations, children }: LocationMapProps)
         zoom: 9
       });
 
-      console.log('got the map')
-
       map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
       
       map.current.on('load', () => {
+        console.log('Map loaded');
         setIsMapReady(true);
         updateMarkers();
       });
@@ -86,15 +249,17 @@ const LocationMap = ({ isOpen, onClose, locations, children }: LocationMapProps)
   const updateMarkers = () => {
     if (!map.current || !isMapReady) return;
 
+    console.log('Updating markers with', realTimeLocations.length, 'locations');
+
     // Clear existing markers
     markers.current.forEach(marker => marker.remove());
     markers.current = [];
 
-    if (locations.length === 0) return;
+    if (realTimeLocations.length === 0) return;
 
     const bounds = new mapboxgl.LngLatBounds();
 
-    locations.forEach((location) => {
+    realTimeLocations.forEach((location) => {
       const getDisplayName = (profile: any) => {
         if (!profile) return 'Anonymous User';
         if (profile.display_name) return profile.display_name;
@@ -118,13 +283,29 @@ const LocationMap = ({ isOpen, onClose, locations, children }: LocationMapProps)
         background-color: #f3f4f6;
         cursor: pointer;
         box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        position: relative;
       `;
+
+      // Add pulsing animation for real-time effect
+      const pulseEl = document.createElement('div');
+      pulseEl.style.cssText = `
+        position: absolute;
+        top: -5px;
+        left: -5px;
+        right: -5px;
+        bottom: -5px;
+        border-radius: 50%;
+        border: 2px solid #3b82f6;
+        animation: pulse 2s infinite;
+      `;
+      markerEl.appendChild(pulseEl);
 
       // If no profile image, add initials
       if (!location.profiles?.profile_picture_urls?.[0]) {
         const name = getDisplayName(location.profiles);
         const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-        markerEl.innerHTML = `<div style="
+        const initialsEl = document.createElement('div');
+        initialsEl.style.cssText = `
           display: flex;
           align-items: center;
           justify-content: center;
@@ -133,7 +314,11 @@ const LocationMap = ({ isOpen, onClose, locations, children }: LocationMapProps)
           font-weight: bold;
           color: #3b82f6;
           font-size: 14px;
-        ">${initials}</div>`;
+          z-index: 1;
+          position: relative;
+        `;
+        initialsEl.textContent = initials;
+        markerEl.appendChild(initialsEl);
       }
 
       const marker = new mapboxgl.Marker(markerEl)
@@ -144,6 +329,9 @@ const LocationMap = ({ isOpen, onClose, locations, children }: LocationMapProps)
               <strong>${getDisplayName(location.profiles)}</strong>
               <br/>
               <small>Updated ${new Date(location.created_at).toLocaleTimeString()}</small>
+              <br/>
+              <div style="width: 8px; height: 8px; background: #10b981; border-radius: 50%; margin: 5px auto; animation: pulse 1s infinite;"></div>
+              <small style="color: #10b981;">Live</small>
             </div>
           `))
         .addTo(map.current!);
@@ -153,10 +341,10 @@ const LocationMap = ({ isOpen, onClose, locations, children }: LocationMapProps)
     });
 
     // Fit map to show all markers
-    if (locations.length > 1) {
+    if (realTimeLocations.length > 1) {
       map.current.fitBounds(bounds, { padding: 50 });
-    } else if (locations.length === 1) {
-      map.current.setCenter([Number(locations[0].longitude), Number(locations[0].latitude)]);
+    } else if (realTimeLocations.length === 1) {
+      map.current.setCenter([Number(realTimeLocations[0].longitude), Number(realTimeLocations[0].latitude)]);
       map.current.setZoom(14);
     }
   };
@@ -166,7 +354,7 @@ const LocationMap = ({ isOpen, onClose, locations, children }: LocationMapProps)
     if (isMapReady) {
       updateMarkers();
     }
-  }, [locations, isMapReady]);
+  }, [realTimeLocations, isMapReady]);
 
   useEffect(() => {
     if (isOpen) {
@@ -178,6 +366,29 @@ const LocationMap = ({ isOpen, onClose, locations, children }: LocationMapProps)
       }, 50);
     }
   }, [isOpen]);
+
+  // Add CSS for pulse animation
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes pulse {
+        0% {
+          transform: scale(1);
+          opacity: 1;
+        }
+        50% {
+          transform: scale(1.1);
+          opacity: 0.7;
+        }
+        100% {
+          transform: scale(1);
+          opacity: 1;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+    return () => document.head.removeChild(style);
+  }, []);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -193,6 +404,10 @@ const LocationMap = ({ isOpen, onClose, locations, children }: LocationMapProps)
               <span className="text-sm text-muted-foreground">
                 (Updates every 5 seconds)
               </span>
+              <div className="flex items-center gap-1 text-xs text-green-600">
+                <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse"></div>
+                Live
+              </div>
             </DialogTitle>
           </div>
         </DialogHeader>
@@ -226,11 +441,12 @@ const LocationMap = ({ isOpen, onClose, locations, children }: LocationMapProps)
           <div ref={mapContainer} className="w-full h-full" />
         </div>
 
-        {locations.length === 0 && isMapReady && (
+        {realTimeLocations.length === 0 && isMapReady && (
           <div className="absolute inset-0 flex items-center justify-center bg-white/80">
             <div className="text-center">
               <MapPin className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-600">No active location shares</p>
+              <p className="text-sm text-gray-500">Share your location to see real-time updates</p>
             </div>
           </div>
         )}

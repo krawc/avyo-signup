@@ -10,7 +10,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { MessageCircle, Send, User, MapPin } from 'lucide-react';
 import TermsAndConditions from './TermsAndConditions';
 import LocationMap from './LocationMap';
-import LocationShare from './LocationShare';
 import { useTermsAcceptance } from '@/hooks/useTermsAcceptance';
 import UserActionsDropdown from './UserActionsDropdown'
 
@@ -36,7 +35,7 @@ interface Message {
   created_at: string;
 }
 
-interface LocationShare {
+interface LocationData {
   id: string;
   user_id: string;
   latitude: number;
@@ -64,8 +63,9 @@ const DirectMessages = ({ eventId, onInteractionAttempt }: DirectMessagesProps) 
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [showTerms, setShowTerms] = useState(false);
-  const [activeLocations, setActiveLocations] = useState<LocationShare[]>([]);
+  const [activeLocations, setActiveLocations] = useState<LocationData[]>([]);
   const [showLocationMap, setShowLocationMap] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
   
   const { hasAccepted: hasAcceptedMessaging, loading: messagingTermsLoading, markAsAccepted: markMessagingAccepted } = useTermsAcceptance('messaging');
 
@@ -144,6 +144,31 @@ const DirectMessages = ({ eventId, onInteractionAttempt }: DirectMessagesProps) 
       };
     }
   }, [user]);
+
+  // Set up real-time subscription for location updates
+  useEffect(() => {
+    if (selectedConnection) {
+      const channel = supabase
+        .channel('location-updates')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'location_shares',
+            filter: `connection_id=eq.${selectedConnection.id}`
+          },
+          () => {
+            loadActiveLocations();
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [selectedConnection]);
 
   const loadConnections = async () => {
     if (!user) return;
@@ -242,6 +267,63 @@ const DirectMessages = ({ eventId, onInteractionAttempt }: DirectMessagesProps) 
       setNewMessage('');
     } catch (error) {
       console.error('Error sending message:', error);
+    }
+  };
+
+  const shareLocation = async () => {
+    if (!selectedConnection || !user) return;
+
+    setIsSharing(true);
+    
+    try {
+      if ('geolocation' in navigator) {
+        navigator.geolocation.getCurrentPosition(async (position) => {
+          const { latitude, longitude } = position.coords;
+          
+          // Set expiration to 24 hours from now
+          const expiresAt = new Date();
+          expiresAt.setHours(expiresAt.getHours() + 24);
+
+          const { error } = await supabase
+            .from('location_shares')
+            .upsert({
+              user_id: user.id,
+              connection_id: selectedConnection.id,
+              latitude,
+              longitude,
+              expires_at: expiresAt.toISOString()
+            }, {
+              onConflict: 'user_id,connection_id'
+            });
+
+          if (error) {
+            console.error('Error sharing location:', error);
+          } else {
+            // Send location message
+            await supabase
+              .from('direct_messages')
+              .insert({
+                connection_id: selectedConnection.id,
+                sender_id: user.id,
+                message: '📍 Shared location'
+              });
+          }
+          setIsSharing(false);
+        }, (error) => {
+          console.error('Error getting location:', error);
+          setIsSharing(false);
+        }, {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 5000
+        });
+      } else {
+        console.error('Geolocation not supported');
+        setIsSharing(false);
+      }
+    } catch (error) {
+      console.error('Error sharing location:', error);
+      setIsSharing(false);
     }
   };
 
@@ -414,6 +496,14 @@ const DirectMessages = ({ eventId, onInteractionAttempt }: DirectMessagesProps) 
                         onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
                         className="text-sm"
                       />
+                      <Button
+                        onClick={shareLocation}
+                        disabled={isSharing}
+                        size="sm"
+                        variant="outline"
+                      >
+                        <MapPin className="h-3 w-3 md:h-4 md:w-4" />
+                      </Button>
                       <Button onClick={sendMessage} size="sm">
                         <Send className="h-3 w-3 md:h-4 md:w-4" />
                       </Button>
@@ -428,13 +518,6 @@ const DirectMessages = ({ eventId, onInteractionAttempt }: DirectMessagesProps) 
             </CardContent>
           </Card>
         </div>
-
-        {/* Location Share Component - now integrated properly */}
-        {selectedConnection && (
-          <div className="mt-4">
-            <LocationShare connectionId={selectedConnection.id} />
-          </div>
-        )}
       </div>
 
       <TermsAndConditions
@@ -451,6 +534,7 @@ const DirectMessages = ({ eventId, onInteractionAttempt }: DirectMessagesProps) 
         isOpen={showLocationMap}
         onClose={() => setShowLocationMap(false)}
         locations={activeLocations}
+        connectionId={selectedConnection?.id || ''}
       >
         <div />
       </LocationMap>
