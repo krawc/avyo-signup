@@ -206,22 +206,24 @@ const Profile = () => {
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2 flex-wrap">
                       <CardTitle className="text-3xl">{getDisplayName()}</CardTitle>
-                      <div className="flex gap-2 ml-auto">
+                      <div className="flex gap-2 sm:ml-auto">
                         <Button
                           variant="outline"
                           size="sm"
+                          className="flex justify-center"
                           onClick={() => setIsEditing(true)}
                         >
-                          <Edit className="h-4 w-4 mr-2" />
-                          Edit Profile
+                          <Edit className="h-4 w-4 sm:mr-2" />
+                          <span className="hidden sm:inline-block">Edit Profile</span>
                         </Button>
                         <Button
                           variant="outline"
                           size="sm"
+                          className="flex justify-center"
                           onClick={() => navigate('/account-settings')}
                         >
-                          <Settings className="h-4 w-4 mr-2" />
-                          Settings
+                          <Settings className="h-4 w-4 sm:mr-2" />
+                          <span className="hidden sm:inline-block">Settings</span>
                         </Button>
                       </div>
                     </div>

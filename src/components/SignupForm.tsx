@@ -140,6 +140,11 @@ const SignupForm = ({ onComplete, onBack }: SignupFormProps) => {
         data: {
           first_name: formData.firstName,
           last_name: formData.lastName,
+          age_range: formData.ageRange,
+          gender: formData.gender,
+          city: formData.city,
+          state: formData.state,
+          phone_number: formData.countryCode + formData.phoneNumber
         }
       }
     });
@@ -183,20 +188,26 @@ const SignupForm = ({ onComplete, onBack }: SignupFormProps) => {
           uploadedUrls.push(url);
         }
 
-        // 2. Insert profile into `profiles` table
-        const { error: profileError } = await supabase.from('profiles').upsert({
-          id: user.id,
-          age_range: formData.ageRange,
-          gender: formData.gender,
-          city: formData.city,
-          state: formData.state,
-          phone_number: formData.countryCode + formData.phoneNumber,
-          profile_picture_urls: uploadedUrls,
+        // 2. Call the SQL function to update profile picture URLs
+        const { error: updateError } = await supabase.rpc('update_profile_pictures', {
+          uid: user.id,
+          urls: uploadedUrls
         });
 
-        if (profileError) {
-          console.error('Profile insert error:', profileError.message);
-        }
+        // // 2. Insert profile into `profiles` table
+        // const { error: profileError } = await supabase.from('profiles').upsert({
+        //   id: user.id,
+        //   age_range: formData.ageRange,
+        //   gender: formData.gender,
+        //   city: formData.city,
+        //   state: formData.state,
+        //   phone_number: formData.countryCode + formData.phoneNumber,
+        //   profile_picture_urls: uploadedUrls,
+        // });
+
+        // if (profileError) {
+        //   console.error('Profile insert error:', profileError.message);
+        // }
       }
       setIsSubmitting(false);
       toast({
