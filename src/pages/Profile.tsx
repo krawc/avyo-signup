@@ -289,24 +289,12 @@ const Profile = () => {
                     Events you're attending or have attended
                   </CardDescription>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => navigate('/qr-scanner')}
-                  className="flex items-center gap-2"
-                >
-                  <ScanQrCode className="h-4 w-4" />
-                  QR Scanner
-                </Button>
               </div>
             </CardHeader>
             <CardContent>
               {myEvents.length === 0 ? (
                 <div className="text-center py-8">
-                  <p className="text-muted-foreground mb-4">You haven't joined any events yet.</p>
-                  <Button onClick={() => navigate('/events')}>
-                    Browse Events
-                  </Button>
+                  <p className="text-muted-foreground mb-4">You haven't joined any events yet. Scan a QR code or visit an event link to join your event.</p>
                 </div>
               ) : (
                 <div className="grid gap-4">
@@ -322,7 +310,7 @@ const Profile = () => {
                           {event.description && (
                             <p className="text-muted-foreground mt-1">{event.description}</p>
                           )}
-                          <div className="flex items-center gap-4 mt-4 text-sm text-muted-foreground flex-col sm:flex-row">
+                          <div className="flex items-start sm:items-center gap-4 mt-4 text-sm text-muted-foreground flex-col sm:flex-row">
                             <div className="flex items-center gap-1">
                               <Calendar className="h-4 w-4" />
                               {formatDate(event.start_date)}
