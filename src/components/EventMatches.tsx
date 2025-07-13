@@ -125,7 +125,7 @@ const EventMatches = ({ eventId, onInteractionAttempt }: EventMatchesProps) => {
         
         // Show placeholders if event has 3 or fewer attendees (including current user)
         if (!attendeeCount || attendeeCount.length <= 3) {
-          setShowPlaceholders(true);
+          setShowPlaceholders(false);
           setTopMatches(createPlaceholderMatches());
         } else {
           setTopMatches([]);
