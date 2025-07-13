@@ -12,6 +12,7 @@ import TermsAndConditions from './TermsAndConditions';
 import LocationMap from './LocationMap';
 import { useTermsAcceptance } from '@/hooks/useTermsAcceptance';
 import UserActionsDropdown from './UserActionsDropdown'
+import { getSignedUrls } from '@/lib/utils';
 
 interface Connection {
   id: string;
@@ -183,15 +184,26 @@ const DirectMessages = ({ eventId, onInteractionAttempt }: DirectMessagesProps) 
         `)
         .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`)
         .eq('status', 'accepted');
+        if (error) throw error;
 
-      if (error) throw error;
-
-      const connectionsWithProfiles = data.map(conn => ({
-        ...conn,
-        profile: conn.requester_id === user.id ? conn.addressee : conn.requester
-      }));
-
-      setConnections(connectionsWithProfiles);
+        const connectionsWithProfiles = await Promise.all(
+          data.map(async (conn) => {
+            const profile = conn.requester_id === user.id ? conn.addressee : conn.requester;
+            const rawUrls: string[] = profile?.profile_picture_urls || [];
+            const signedUrls = await getSignedUrls(rawUrls);
+        
+            return {
+              ...conn,
+              profile: {
+                ...profile,
+                profile_picture_urls: signedUrls,
+              },
+            };
+          })
+        );
+        
+        setConnections(connectionsWithProfiles);
+        
     } catch (error) {
       console.error('Error loading connections:', error);
     } finally {
