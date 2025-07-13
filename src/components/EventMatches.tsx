@@ -216,7 +216,7 @@ const EventMatches = ({ eventId, onInteractionAttempt }: EventMatchesProps) => {
                 className="text-xs md:text-sm"
               >
                 <Eye className="h-3 w-3 md:h-4 md:w-4 mr-1" />
-                View All Matches
+                View All
               </Button>
             </div>
           </CardHeader>

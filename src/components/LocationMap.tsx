@@ -96,7 +96,7 @@ const LocationMap = ({ isOpen, onClose, locations, connectionId, children }: Loc
     
     // Update location every 5 seconds
     locationUpdateInterval.current = setInterval(() => {
-      updateCurrentLocation();
+      //updateCurrentLocation();
       loadLocations();
     }, 5000);
 
@@ -449,9 +449,6 @@ const LocationMap = ({ isOpen, onClose, locations, connectionId, children }: Loc
             <DialogTitle className="flex items-center gap-2">
               <MapPin className="h-5 w-5" />
               Live Locations Map
-              <span className="text-sm text-muted-foreground">
-                (Updates every 5 seconds)
-              </span>
               <div className="flex items-center gap-1 text-xs text-green-600">
                 <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse"></div>
                 Live

@@ -259,10 +259,10 @@ const DirectMessages = ({ eventId, onInteractionAttempt }: DirectMessagesProps) 
       return;
     }
 
-    if (hasAcceptedMessaging === false) {
-      setShowTerms(true);
-      return;
-    }
+    // if (hasAcceptedMessaging === false) {
+    //   setShowTerms(true);
+    //   return;
+    // }
 
     if (!newMessage.trim() || !selectedConnection || !user) return;
 

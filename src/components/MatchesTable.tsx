@@ -158,9 +158,9 @@ const MatchesTable = ({ eventId, excludeUserIds, onMatchResponse, matches: propM
                 <h3 className="font-semibold truncate text-sm md:text-base">
                   {getDisplayName(match.profile)}
                 </h3>
-                <Badge variant="secondary" className="text-xs">
+                {/* <Badge variant="secondary" className="text-xs">
                   {match.compatibility_score}% match
-                </Badge>
+                </Badge> */}
                 {isPlaceholder(match) && (
                   <Badge variant="outline" className="text-xs text-blue-600 border-blue-300">
                     Preview
