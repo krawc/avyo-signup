@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { MapPin, Settings } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { getSignedUrls } from '@/lib/utils';
 
 interface LocationShare {
   id: string;
@@ -183,7 +184,7 @@ const LocationMap = ({ isOpen, onClose, locations, connectionId, children }: Loc
 
   const loadLocations = async () => {
     if (!connectionId) return;
-
+  
     try {
       const { data, error } = await supabase
         .from('location_shares')
@@ -199,17 +200,33 @@ const LocationMap = ({ isOpen, onClose, locations, connectionId, children }: Loc
         .eq('connection_id', connectionId)
         .gt('expires_at', new Date().toISOString())
         .order('created_at', { ascending: false });
-
+  
       if (error) {
         console.error('Error loading locations:', error);
       } else {
-        console.log('Loaded locations:', data?.length || 0);
-        setRealTimeLocations(data || []);
+        const withSignedUrls = await Promise.all(
+          (data || []).map(async (location) => {
+            const rawUrls: string[] = location.profiles?.profile_picture_urls || [];
+            const signedUrls = await getSignedUrls(rawUrls);
+  
+            return {
+              ...location,
+              profiles: {
+                ...location.profiles,
+                profile_picture_urls: signedUrls,
+              },
+            };
+          })
+        );
+  
+        console.log('Loaded locations:', withSignedUrls.length);
+        setRealTimeLocations(withSignedUrls);
       }
     } catch (error) {
       console.error('Error loading locations:', error);
     }
   };
+  
 
   const initializeMap = () => {
     if (!mapContainer.current || !mapboxToken) return;
