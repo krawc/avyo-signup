@@ -202,7 +202,7 @@ const EventMatches = ({ eventId, onInteractionAttempt }: EventMatchesProps) => {
             <div className="flex justify-between items-center">
               <CardTitle className="flex items-center gap-2 text-base md:text-lg">
                 <Heart className="h-4 w-4 md:h-5 md:w-5 text-pink-500" />
-                Your Potential Matches
+                  Potential Matches
                 {showPlaceholders && (
                   <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full ml-2">
                     Preview
