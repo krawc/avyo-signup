@@ -400,7 +400,7 @@ const DirectMessages = ({ eventId, onInteractionAttempt }: DirectMessagesProps) 
 
   return (
     <>
-      <div className={`relative ${showBlur ? 'blur-sm pointer-events-none' : ''}`}>
+      <div className={`relative`}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 h-96">
           {/* Connections List */}
           <Card className="md:col-span-1">

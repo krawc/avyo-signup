@@ -189,7 +189,7 @@ const Index = () => {
                 className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-4 text-lg rounded-full shadow-lg hover:shadow-xl transition-all duration-300 mb-4"
                 onClick={() => setCurrentStep('signup')} 
               >
-                Complete Registration Form
+                Complete Registration
               </Button>
               
               <div className="bg-blue-50 rounded-lg p-4 mt-6">

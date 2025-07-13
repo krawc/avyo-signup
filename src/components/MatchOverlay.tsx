@@ -68,7 +68,7 @@ const MatchOverlay = ({ match, onClose, onGoToDM }: MatchOverlayProps) => {
           </div>
           
           <p className="text-lg font-semibold text-gray-800">
-            You and {getDisplayName()} liked each other!
+            You and {getDisplayName()} liked each other! Send them a message.
           </p>
           
           <div className="flex gap-3 pt-2">
@@ -77,14 +77,7 @@ const MatchOverlay = ({ match, onClose, onGoToDM }: MatchOverlayProps) => {
               onClick={onClose}
               className="flex-1"
             >
-              Keep Browsing
-            </Button>
-            <Button 
-              onClick={onGoToDM}
-              className="flex-1 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600"
-            >
-              <MessageCircle className="h-4 w-4 mr-2" />
-              Message
+              Close
             </Button>
           </div>
         </CardContent>
