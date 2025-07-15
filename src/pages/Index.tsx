@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Heart, Users, Church, MessageCircle, UserCheck, ArrowRight, Star, Quote } from 'lucide-react';
+import { Heart, Users, Church, MessageCircle, UserCheck, ArrowRight, Star, Quote, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import Header from '@/components/Header';
@@ -78,9 +78,9 @@ const Index = () => {
                   "For where two or three gather in my name, there am I with them." - Matthew 18:20
                 </p>
               </div>
-              <Button onClick={() => navigate('/profile')} className="w-full">
-                View My Profile
-              </Button>
+              <div className="flex justify-center">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              </div>
             </CardContent>
           </Card>
         </div>
