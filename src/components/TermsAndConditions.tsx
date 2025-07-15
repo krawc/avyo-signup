@@ -11,7 +11,7 @@ interface TermsAndConditionsProps {
   isOpen: boolean;
   onClose: () => void;
   onAccept: () => void;
-  termsType: 'messaging' | 'location_sharing';
+  termsType: 'messaging' | 'location_sharing' | 'registration';
 }
 
 const TermsAndConditions = ({ isOpen, onClose, onAccept, termsType }: TermsAndConditionsProps) => {
@@ -100,6 +100,65 @@ We may update these terms from time to time. Continued use of the messaging feat
 
 **8. CONTACT**
 For questions about these terms, please contact our support team.
+
+By clicking "I Agree," you acknowledge that you have read, understood, and agree to be bound by these Terms and Conditions.
+        `
+      };
+    } else if (termsType === 'registration') {
+      return {
+        title: "Terms and Conditions",
+        content: `
+**AVYO IN-GATHERING TERMS AND CONDITIONS**
+
+**Effective Date:** ${new Date().toLocaleDateString()}
+
+**1. ACCEPTANCE OF TERMS**
+By creating an account with AVYO In-Gathering, you agree to be bound by these Terms and Conditions. If you do not agree to these terms, please do not use our service.
+
+**2. PURPOSE AND SCOPE**
+AVYO In-Gathering is designed to connect Christian singles through faith-based events and gatherings. Our platform facilitates meaningful connections based on shared values and beliefs.
+
+**3. USER CONDUCT**
+You agree to:
+- Provide accurate and truthful information in your profile
+- Maintain respectful and appropriate behavior at all times
+- Honor Christian values and principles in all interactions
+- Respect other users' boundaries and privacy
+- Not engage in harassment, bullying, or inappropriate behavior
+- Report any concerning behavior to our support team
+
+**4. PROHIBITED CONTENT AND BEHAVIOR**
+The following are strictly prohibited:
+- False or misleading profile information
+- Offensive, vulgar, or inappropriate language or content
+- Sexual content or solicitation
+- Harassment, threats, or bullying
+- Spam or promotional content
+- Content that violates Christian values or principles
+- Impersonation of others
+- Sharing of personal information of other users without consent
+
+**5. PRIVACY AND SAFETY**
+- We take your privacy and safety seriously
+- Profile information is shared only with event attendees
+- We reserve the right to monitor content for safety purposes
+- Users should exercise caution when sharing personal information
+- Report any suspicious or concerning behavior immediately
+
+**6. EVENTS AND PAYMENTS**
+- Event participation may require payment
+- All payments are processed securely through our payment processor
+- Refund policies are subject to event-specific terms
+- Users are responsible for their own safety at events
+
+**7. TERMINATION**
+We reserve the right to suspend or terminate accounts for users who violate these terms, engage in inappropriate behavior, or compromise the safety of our community.
+
+**8. CHANGES TO TERMS**
+We may update these terms from time to time. Continued use of our service constitutes acceptance of any changes.
+
+**9. CONTACT**
+For questions about these terms, please contact our support team at support@avyo.com.
 
 By clicking "I Agree," you acknowledge that you have read, understood, and agree to be bound by these Terms and Conditions.
         `

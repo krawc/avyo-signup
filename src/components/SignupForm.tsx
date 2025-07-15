@@ -4,10 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowLeft, Upload, User, Calendar, MapPin, Mail, Phone, Lock } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from '@/integrations/supabase/client';
 import PhoneInput from './PhoneInput';
+import TermsAndConditions from './TermsAndConditions';
 
 interface SignupFormProps {
   onComplete: () => void;
@@ -28,11 +30,13 @@ const SignupForm = ({ onComplete, onBack }: SignupFormProps) => {
     email: '',
     password: '',
     profilePictures: [] as File[],
-    dateOfBirth: ''
+    dateOfBirth: '',
+    termsAccepted: false
   });
 
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
   const totalSteps = 3;
 
   const ageRanges = [
@@ -50,7 +54,7 @@ const SignupForm = ({ onComplete, onBack }: SignupFormProps) => {
     { value: '76+', label: '76+' },
   ];
 
-  const handleInputChange = (field: string, value: string) => {
+  const handleInputChange = (field: string, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -110,7 +114,7 @@ const SignupForm = ({ onComplete, onBack }: SignupFormProps) => {
       case 2:
         return formData.city && formData.state && formData.email;
       case 3:
-        return formData.profilePictures.length > 0;
+        return formData.profilePictures.length > 0 && formData.termsAccepted;
       default:
         return false;
     }
@@ -466,6 +470,30 @@ const SignupForm = ({ onComplete, onBack }: SignupFormProps) => {
                         <li>• Good lighting preferred</li>
                       </ul>
                     </div>
+
+                    {/* Terms and Conditions */}
+                    <div className="bg-white/50 rounded-lg p-4 border border-white/20">
+                      <div className="flex items-start space-x-3">
+                        <Checkbox
+                          id="terms"
+                          checked={formData.termsAccepted}
+                          onCheckedChange={(checked) => handleInputChange('termsAccepted', checked as boolean)}
+                          className="mt-1"
+                        />
+                        <div className="flex-1">
+                          <Label htmlFor="terms" className="text-sm cursor-pointer">
+                            I accept the{' '}
+                            <button
+                              type="button"
+                              onClick={() => setShowTerms(true)}
+                              className="text-primary hover:text-primary/80 underline font-medium"
+                            >
+                              Terms and Conditions
+                            </button>
+                          </Label>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </>
               )}
@@ -481,6 +509,17 @@ const SignupForm = ({ onComplete, onBack }: SignupFormProps) => {
           </Card>
         </div>
       </div>
+
+      {/* Terms and Conditions Dialog */}
+      <TermsAndConditions
+        isOpen={showTerms}
+        onClose={() => setShowTerms(false)}
+        onAccept={() => {
+          setFormData(prev => ({ ...prev, termsAccepted: true }));
+          setShowTerms(false);
+        }}
+        termsType="registration"
+      />
     </div>
   );
 };
