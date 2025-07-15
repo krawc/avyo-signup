@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Lock, CreditCard, X } from 'lucide-react';
+import { Lock, CreditCard, X, ArrowLeft } from 'lucide-react';
 
 interface PaymentOverlayProps {
   eventId: string;
@@ -79,7 +79,7 @@ const PaymentOverlay = ({ eventId, eventTitle, isPostEvent = false, onPaymentSuc
                 onClick={onClose}
                 className="absolute right-4 top-4 p-2 hover:bg-gray-100 rounded-full"
               >
-                <X className="w-5 h-5" />
+                <ArrowLeft className="w-5 h-5" />
               </button>
             )}
             <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
