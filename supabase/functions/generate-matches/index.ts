@@ -48,61 +48,79 @@ serve(async (req) => {
       })
     }
 
-    // Calculate compatibility scores
-    const potentialMatches = attendees
-      .filter(attendee => attendee.profiles)
-      .map(attendee => {
-        const profile = attendee.profiles
-        let score = 0
+    // Define ordered age ranges
+const ageRanges = [
+  'Below 25', '26-30', '31-35', '36-40', '41-45', '46-50',
+  '51-55', '56-60', '61-65', '66-70', '71-75', '76+'
+];
 
-        // Age compatibility (higher score for closer ages)
-        if (userProfile.date_of_birth && profile.date_of_birth) {
-          const userAge = Math.floor((Date.now() - new Date(userProfile.date_of_birth).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
-          const profileAge = Math.floor((Date.now() - new Date(profile.date_of_birth).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
-          const ageDiff = Math.abs(userAge - profileAge)
-          
-          if (ageDiff <= 2) score += 30
-          else if (ageDiff <= 5) score += 20
-          else if (ageDiff <= 10) score += 10
-        }
+// Calculate compatibility scores
+const potentialMatches = attendees
+  .filter(attendee => attendee.profiles)
+  .map(attendee => {
+    const profile = attendee.profiles;
+    let score = 0;
 
-        // Gender preference (basic implementation)
-        if (userProfile.gender && profile.gender && userProfile.gender !== profile.gender) {
-          score += 20
-        }
+    // Age compatibility (numeric)
+    if (userProfile.date_of_birth && profile.date_of_birth) {
+      const userAge = Math.floor((Date.now() - new Date(userProfile.date_of_birth).getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+      const profileAge = Math.floor((Date.now() - new Date(profile.date_of_birth).getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+      const ageDiff = Math.abs(userAge - profileAge);
 
-        // Same city bonus
-        if (userProfile.city && profile.city && userProfile.city === profile.city) {
-          score += 25
-        }
+      if (ageDiff <= 2) score += 30;
+      else if (ageDiff <= 5) score += 20;
+      else if (ageDiff <= 10) score += 10;
+    }
 
-        // Same state bonus
-        if (userProfile.state && profile.state && userProfile.state === profile.state) {
-          score += 15
-        }
+    // Age range compatibility
+    if (userProfile.age_range && profile.age_range) {
+      const userIndex = ageRanges.indexOf(userProfile.age_range);
+      const profileIndex = ageRanges.indexOf(profile.age_range);
+      const rangeDiff = Math.abs(userIndex - profileIndex);
 
-        // Marital status compatibility
-        if (userProfile.marital_status && profile.marital_status) {
-          if (userProfile.marital_status === profile.marital_status) {
-            score += 15
-          }
-        }
+      if (rangeDiff === 0) score += 25; // same range
+      else if (rangeDiff === 1) score += 10; // adjacent
+    }
 
-        // Kids compatibility
-        if (userProfile.has_kids && profile.has_kids) {
-          if (userProfile.has_kids === profile.has_kids) {
-            score += 10
-          }
-        }
+    // Gender preference
+    if (userProfile.gender && profile.gender && userProfile.gender !== profile.gender) {
+      score += 50;
+    }
 
-        return {
-          user_id: attendee.user_id,
-          profile,
-          compatibility_score: score
-        }
-      })
-      .sort((a, b) => b.compatibility_score - a.compatibility_score)
-      .slice(0, 5) // Top 5 matches
+    // Same city bonus
+    if (userProfile.city && profile.city && userProfile.city === profile.city) {
+      score += 25;
+    }
+
+    // Same state bonus
+    if (userProfile.state && profile.state && userProfile.state === profile.state) {
+      score += 15;
+    }
+
+    // Marital status compatibility
+    if (userProfile.marital_status && profile.marital_status) {
+      if (userProfile.marital_status === profile.marital_status) {
+        score += 15;
+      }
+    }
+
+    // Kids compatibility
+    if (userProfile.has_kids !== undefined && profile.has_kids !== undefined) {
+      if (userProfile.has_kids === profile.has_kids) {
+        score += 10;
+      }
+    }
+
+    // Cap the score at 100
+    if (score > 100) score = 100;
+
+    return {
+      user_id: attendee.user_id,
+      profile,
+      compatibility_score: score
+    };
+  })
+  .sort((a, b) => b.compatibility_score - a.compatibility_score)
 
     // Store matches in database
     const matchesToInsert = potentialMatches.map(match => ({
