@@ -40,7 +40,7 @@ serve(async (req) => {
     // Use event's price or default to $26.00 if not set
     const amount = eventData.price_cents || 2600;
 
-    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
+    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY_PROD") || "", {
       apiVersion: "2023-10-16",
     });
 
