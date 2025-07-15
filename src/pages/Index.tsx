@@ -17,6 +17,16 @@ const Index = () => {
   const [userEmail, setUserEmail] = useState('');
 
   useEffect(() => {
+    if (user) {
+      const timeout = setTimeout(() => {
+        navigate('/profile');
+      }, 2000);
+
+      return () => clearTimeout(timeout); // cleanup on unmount
+    }
+  }, [user, navigate]);
+
+  useEffect(() => {
     // Check for event ID in URL params
     const urlParams = new URLSearchParams(window.location.search);
     const eventId = urlParams.get('eventId');
@@ -61,15 +71,8 @@ const Index = () => {
               <CardTitle className="text-3xl flex items-center justify-center gap-2">
                 Welcome to AVYO In-Gathering!
               </CardTitle>
-              <CardDescription className="text-lg">
-                Hello {user.email}! Your faith community awaits.
-              </CardDescription>
             </CardHeader>
             <CardContent className="text-center">
-              <p className="text-muted-foreground mb-6">
-                You're now part of our growing Christian community. Here you can connect with believers, 
-                share your faith journey, and grow together in Christ.
-              </p>
               <div className="bg-primary/10 rounded-lg p-4 mb-6">
                 <p className="text-sm text-primary font-medium">
                   "For where two or three gather in my name, there am I with them." - Matthew 18:20
