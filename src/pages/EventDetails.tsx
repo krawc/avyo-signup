@@ -328,6 +328,7 @@ const EventDetails = () => {
         {showPaymentOverlay && (
           <PaymentOverlay
             eventId={eventId!}
+            eventTitle={event?.title || 'Event'}
             onClose={() => setShowPaymentOverlay(false)}
             onPaymentSuccess={handlePaymentSuccess}
           />

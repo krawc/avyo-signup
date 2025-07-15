@@ -28,6 +28,18 @@ serve(async (req) => {
     const { eventId, eventTitle, isPostEvent } = await req.json();
     if (!eventId) throw new Error("Event ID is required");
 
+    // Fetch event details including price
+    const { data: eventData, error: eventError } = await supabaseClient
+      .from('events')
+      .select('price_cents')
+      .eq('id', eventId)
+      .single();
+
+    if (eventError) throw new Error(`Event not found: ${eventError.message}`);
+
+    // Use event's price or default to $26.00 if not set
+    const amount = eventData.price_cents || 2600;
+
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
       apiVersion: "2023-10-16",
     });
@@ -39,8 +51,6 @@ serve(async (req) => {
       customerId = customers.data[0].id;
     }
 
-    // Determine pricing based on event type
-    const amount = isPostEvent ? 1999 : 4999; // $19.99 for post-event, $49.99 for regular
     const productName = isPostEvent 
       ? `Post-Event Access: ${eventTitle}` 
       : `Event Access: ${eventTitle}`;
