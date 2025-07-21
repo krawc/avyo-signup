@@ -50,6 +50,7 @@ const Profile = () => {
 
   useEffect(() => {
     if (!user) {
+      navigate('/');
       return;
     }
 
