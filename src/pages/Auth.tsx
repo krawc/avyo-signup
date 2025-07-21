@@ -250,7 +250,7 @@ const Auth = () => {
                   </>
                 )}
                 
-                <Button
+                {/* <Button
                   variant="link"
                   onClick={() => {
                     setIsLogin(!isLogin);
@@ -259,7 +259,7 @@ const Auth = () => {
                   className="w-full text-sm text-muted-foreground hover:text-primary"
                 >
                   {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
-                </Button>
+                </Button> */}
               </div>
             </CardContent>
           </Card>
