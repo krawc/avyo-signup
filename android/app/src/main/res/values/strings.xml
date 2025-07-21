@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">AVYO In-Gathering</string>
+    <string name="title_activity_main">AVYO In-Gathering</string>
+    <string name="package_name">com.avyo.ingathering</string>
+    <string name="custom_url_scheme">com.avyo.ingathering</string>
+</resources>

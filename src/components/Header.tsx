@@ -89,9 +89,6 @@ const Header = () => {
               <Button variant="outline" onClick={() => navigate('/auth')}>
                 Login
               </Button>
-              <Button onClick={() => navigate('/auth')}>
-                Sign Up
-              </Button>
             </div>
           )}
         </div>

@@ -9,9 +9,13 @@ import Header from '@/components/Header';
 import SignupForm from '../components/SignupForm';
 import PostRegistrationForm from '../components/PostRegistrationForm';
 import EmailConfirmation from '../components/EmailConfirmation';
+import { useToast } from "@/hooks/use-toast";
+import { addEventId } from "@/lib/utils";
+import { useDeepLink } from '@/hooks/useDeepLink';
 
 const Index = () => {
   const { user, loading } = useAuth();
+  const { toast } = useToast();
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState<'welcome' | 'signup' | 'post-registration' | 'email-confirmation'>('welcome');
   const [userEmail, setUserEmail] = useState('');
@@ -25,6 +29,33 @@ const Index = () => {
       return () => clearTimeout(timeout); // cleanup on unmount
     }
   }, [user, navigate]);
+
+  const handleEventId = async (eventId: string) => {
+    try {
+      const updatedProfile = await addEventId(eventId);
+      toast({
+        description: "",
+        title: `Event added to your profile!`,
+      });
+    } catch (error) {
+      toast({
+        description: "Failed to save event to profile",
+        title: `Error`,
+      });
+    }
+  };
+
+  const handleDeepLinkError = (error: string) => {
+    toast({
+      title: "Link error",
+      description: `${error}`,
+    });
+  };
+  // Handle deep links from QR codes scanned with device camera
+  useDeepLink({
+    onEventId: handleEventId,
+    onError: handleDeepLinkError
+  });
 
   useEffect(() => {
     // Check for event ID in URL params
