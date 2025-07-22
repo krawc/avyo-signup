@@ -15,7 +15,7 @@ const PrivacyPolicy = () => {
               <section>
                 <h2 className="text-2xl font-semibold mb-4 text-foreground">1. Introduction</h2>
                 <p className="text-muted-foreground leading-relaxed">
-                  AVYO In-Gathering ("we," "our," or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our mobile application and related services (collectively, the "Service"). The AVYO In-Gathering app is a social networking platform designed to help users connect at events through profile matching, QR code networking, and location-based features.
+                  AVYO Technologies ("we," "our," or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our mobile application and related services (collectively, the "Service"). The AVYO In-Gathering app is a social networking platform designed to help users connect at events through profile matching, QR code networking, and location-based features.
                 </p>
               </section>
 
@@ -165,10 +165,9 @@ const PrivacyPolicy = () => {
                 </p>
                 <div className="mt-4 p-4 bg-muted/50 rounded-lg">
                   <p className="text-muted-foreground">
-                    <strong>AVYO In-Gathering</strong><br />
-                    Email: privacy@avyo.com<br />
-                    Address: [Your Company Address]<br />
-                    Phone: [Your Contact Number]
+                    <strong>AVYO Technologies</strong><br />
+                    Email: manager@thecouragehouse.org<br />
+                    Address: Elk Grove, CA, US<br />
                   </p>
                 </div>
               </section>
