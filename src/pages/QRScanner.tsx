@@ -1,161 +1,324 @@
-
-import { useEffect, useRef, useState } from 'react';
-import { BrowserMultiFormatReader } from '@zxing/library';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Camera } from 'lucide-react';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { BarcodeScanner } from '@capacitor-community/barcode-scanner';
 import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { ArrowLeft, Camera, X, Zap, ZapOff } from 'lucide-react';
 import Header from '@/components/Header';
 
 const QRScanner = () => {
   const navigate = useNavigate();
-  const videoRef = useRef<HTMLVideoElement>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const readerRef = useRef<BrowserMultiFormatReader | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [torchEnabled, setTorchEnabled] = useState(false);
+  const scanningRef = useRef(false);
 
+  // Cleanup function to ensure proper state reset
+  const cleanup = useCallback(async () => {
+    try {
+      if (scanningRef.current) {
+        await BarcodeScanner.stopScan();
+        scanningRef.current = false;
+      }
+      BarcodeScanner.showBackground();
+      document.body.style.background = '';
+      document.body.style.opacity = '';
+      setIsScanning(false);
+      setTorchEnabled(false);
+    } catch (err) {
+      console.error('Cleanup error:', err);
+    }
+  }, []);
+
+  // Initialize scanner permissions on mount
   useEffect(() => {
-    readerRef.current = new BrowserMultiFormatReader();
+    const initializeScanner = async () => {
+      try {
+        const status = await BarcodeScanner.checkPermission({ force: false });
+        setIsInitialized(true);
+        
+        if (status.denied) {
+          setError('Camera permission is required for QR scanning.');
+        }
+      } catch (err) {
+        console.error('Scanner initialization error:', err);
+        setError('QR scanner not available on this device.');
+      }
+    };
+
+    initializeScanner();
+    return () => {
+      cleanup();
+    };
+  }, [cleanup]);
+
+  const startScan = async () => {
+    if (scanningRef.current) {
+      console.warn('Scan already in progress');
+      return;
+    }
+
+    try {
+      setError(null);
+
+      const status = await BarcodeScanner.checkPermission({ force: true });
+      
+      if (status.denied || !status.granted) {
+        setError('Camera permission denied. Please enable camera access in settings.');
+        return;
+      }
+
+      setIsScanning(true);
+      scanningRef.current = true;
+      
+      // Make the body transparent to show camera
+      document.body.style.background = 'transparent';
+      document.body.style.opacity = '1';
+      
+      // Hide the WebView background to show native camera
+      BarcodeScanner.hideBackground();
+
+      console.log('Starting barcode scan...');
+      const result = await BarcodeScanner.startScan();
+
+      if (!scanningRef.current) {
+        return;
+      }
+
+      if (result.hasContent && result.content) {
+        const text = result.content.trim();
+        console.log('Scanned QR:', text);
+        handleScannedContent(text);
+      } else {
+        console.log('Scan cancelled or no content found');
+      }
+    } catch (err: any) {
+      console.error('Scan error:', err);
+      
+      if (err.message?.includes('User cancelled')) {
+        console.log('User cancelled scan');
+      } else if (err.message?.includes('permission')) {
+        setError('Camera permission error. Please check your settings.');
+      } else {
+        setError('Failed to start scanner. Please try again.');
+      }
+    } finally {
+      await cleanup();
+    }
+  };
+
+  const handleScannedContent = (text: string) => {
+    try {
+      const url = new URL(text);
+      if (url.protocol === 'http:' || url.protocol === 'https:') {
+        window.open(url.href, '_blank');
+        return;
+      }
+    } catch {
+      // Not a valid URL
+    }
+
+    if (text.startsWith('/')) {
+      navigate(text);
+      return;
+    }
+
+    if (text.includes(':')) {
+      const [protocol] = text.split(':');
+      if (['tel', 'mailto', 'sms'].includes(protocol.toLowerCase())) {
+        window.location.href = text;
+        return;
+      }
+    }
+
+    setError(`Unrecognized QR code format: ${text.substring(0, 50)}...`);
+  };
+
+  const stopScan = async () => {
+    if (!scanningRef.current) {
+      return;
+    }
+
+    try {
+      console.log('Stopping scan...');
+      await cleanup();
+    } catch (err) {
+      console.error('Error stopping scan:', err);
+      await cleanup();
+    }
+  };
+
+  const toggleTorch = async () => {
+    try {
+      if (torchEnabled) {
+        await BarcodeScanner.disableTorch();
+      } else {
+        await BarcodeScanner.enableTorch();
+      }
+      setTorchEnabled(!torchEnabled);
+    } catch (err) {
+      console.error('Torch toggle error:', err);
+    }
+  };
+
+  // Handle component unmount or navigation away
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (scanningRef.current) {
+        BarcodeScanner.stopScan().catch(console.error);
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
     
     return () => {
-      if (readerRef.current) {
-        readerRef.current.reset();
-      }
+      window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, []);
 
-  const startScanning = async () => {
-    if (!videoRef.current || !readerRef.current) return;
-  
-    try {
-      setIsScanning(true);
-      setError(null);
-  
-      const devices = await readerRef.current.listVideoInputDevices();
-      let selectedDeviceId: string | undefined;
-  
-      // Try to find a rear camera
-      for (const device of devices) {
-        if (device.label.toLowerCase().includes('back') || device.label.toLowerCase().includes('environment')) {
-          selectedDeviceId = device.deviceId;
-          break;
-        }
-      }
-  
-      // Fallback to first available device
-      if (!selectedDeviceId && devices.length > 0) {
-        selectedDeviceId = devices[0].deviceId;
-      }
+  if (!isInitialized) {
+    return (
+      <div className="min-h-screen gradient-bg">
+        <Header />
+        <div className="container mx-auto px-4 py-8">
+          <div className="max-w-md mx-auto">
+            <Card className="gradient-card border-0 shadow-lg">
+              <CardContent className="text-center py-8">
+                <p className="text-muted-foreground">Initializing scanner...</p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-      console.log(selectedDeviceId)
-  
-      if (!selectedDeviceId) {
-        throw new Error('No video input devices found');
-      }
-  
-      await readerRef.current.decodeFromVideoDevice(
-        selectedDeviceId,
-        videoRef.current,
-        (result) => {
-          if (result) {
-            const text = result.getText();
-            console.log('QR Code detected:', text);
-  
-            try {
-              const url = new URL(text);
-              window.open(url.href, '_blank');
-            } catch {
-              if (text.startsWith('/')) {
-                navigate(text);
-              } else {
-                setError('QR code does not contain a valid link');
-              }
-            }
-  
-            stopScanning();
+  // Scanning UI - overlaid on camera feed
+  if (isScanning) {
+    return (
+      <div className="fixed inset-0 z-50">
+        {/* Camera feed will show through transparent background */}
+        
+        {/* Top overlay with controls */}
+        <div className="absolute top-0 left-0 right-0 z-10 bg-black/50 text-white p-4">
+          <div className="flex items-center justify-between">
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={stopScan}
+              className="text-white hover:bg-white/20"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back
+            </Button>
+            
+            <h1 className="text-lg font-semibold">Scan QR Code</h1>
+            
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={toggleTorch}
+              className="text-white hover:bg-white/20"
+            >
+              {torchEnabled ? <Zap className="w-4 h-4" /> : <ZapOff className="w-4 h-4" />}
+            </Button>
+          </div>
+        </div>
+
+        {/* Center scanning frame */}
+        <div className="absolute inset-0 flex items-center justify-center z-10">
+          <div className="relative w-64 h-64">
+            {/* Scanning frame */}
+            <div className="absolute inset-0 border-2 border-white rounded-lg">
+              {/* Corner indicators */}
+              <div className="absolute -top-1 -left-1 w-6 h-6 border-l-4 border-t-4 border-green-400 rounded-tl-lg"></div>
+              <div className="absolute -top-1 -right-1 w-6 h-6 border-r-4 border-t-4 border-green-400 rounded-tr-lg"></div>
+              <div className="absolute -bottom-1 -left-1 w-6 h-6 border-l-4 border-b-4 border-green-400 rounded-bl-lg"></div>
+              <div className="absolute -bottom-1 -right-1 w-6 h-6 border-r-4 border-b-4 border-green-400 rounded-br-lg"></div>
+            </div>
+            
+            {/* Scanning line animation */}
+            <div className="absolute inset-0 overflow-hidden rounded-lg">
+              <div 
+                className="w-full h-0.5 bg-gradient-to-r from-transparent via-green-400 to-transparent animate-pulse"
+                style={{
+                  animation: 'scan 2s ease-in-out infinite',
+                  transform: 'translateY(128px)'
+                }}
+              ></div>
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom overlay with instructions and controls */}
+        <div className="absolute bottom-0 left-0 right-0 z-10 bg-black/50 text-white p-6">
+          <div className="text-center space-y-4">
+            <p className="text-sm">Position the QR code within the frame</p>
+            <p className="text-xs text-white/70">The scanner will automatically detect and process QR codes</p>
+            
+            <Button 
+              onClick={stopScan} 
+              variant="destructive" 
+              className="w-full max-w-xs mx-auto"
+            >
+              <X className="w-4 h-4 mr-2" />
+              Stop Scanning
+            </Button>
+          </div>
+        </div>
+
+        {/* Add scanning animation styles */}
+        <style>{`
+          @keyframes scan {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(256px); }
           }
-        }
-      );
-    } catch (err) {
-      console.error('Error starting camera:', err);
-      setError('Unable to access camera. Please ensure you have granted camera permissions.');
-      setIsScanning(false);
-    }
-  };
-  
+        `}</style>
+      </div>
+    );
+  }
 
-  const stopScanning = () => {
-    if (readerRef.current) {
-      readerRef.current.reset();
-    }
-    setIsScanning(false);
-  };
-
+  // Regular UI when not scanning
   return (
     <div className="min-h-screen gradient-bg">
       <Header />
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-md mx-auto">
-          <div className="mb-6">
-            <Button
-              variant="ghost"
-              onClick={() => navigate(-1)}
-              className="mb-4"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back
-            </Button>
-            <h1 className="text-2xl font-bold text-foreground">QR Code Scanner</h1>
-            <p className="text-muted-foreground mt-2">
-              Scan QR codes to quickly navigate to links or pages
-            </p>
-          </div>
 
           <Card className="gradient-card border-0 shadow-lg">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Camera className="w-5 h-5" />
-                Camera Scanner
-              </CardTitle>
-            </CardHeader>
             <CardContent className="space-y-4">
-              <div className="relative">
-                <video
-                  ref={videoRef}
-                  className="w-full h-64 bg-black rounded-lg object-cover"
-                  playsInline
-                />
-                {!isScanning && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg">
-                    <div className="text-center text-white">
-                      <Camera className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                      <p>Camera not active</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
               {error && (
                 <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
                   <p className="text-sm text-destructive">{error}</p>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => setError(null)}
+                    className="mt-2 text-xs"
+                  >
+                    Dismiss
+                  </Button>
                 </div>
               )}
 
-              <div className="flex gap-2">
-                {!isScanning ? (
-                  <Button onClick={startScanning} className="flex-1">
-                    <Camera className="w-4 h-4 mr-2" />
-                    Start Scanning
-                  </Button>
-                ) : (
-                  <Button onClick={stopScanning} variant="destructive" className="flex-1">
-                    Stop Scanning
-                  </Button>
-                )}
+              <div className="text-center space-y-4">
+                {/* Camera preview placeholder */}
+                <div className="w-full h-64 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600">
+                  <div className="text-center">
+                    <Camera className="w-12 h-12 mx-auto mb-2 text-gray-400" />
+                    <p className="text-sm text-gray-500">Camera will appear here when scanning</p>
+                  </div>
+                </div>
+
+                <Button onClick={startScan} size="lg" className="w-full" disabled={!!error}>
+                  <Camera className="w-5 h-5 mr-2" />
+                  Start QR Code Scan
+                </Button>
               </div>
 
-              <div className="text-sm text-muted-foreground">
-                <p>Position the QR code within the camera view. The scanner will automatically detect and navigate to valid links.</p>
+              <div className="text-sm text-muted-foreground space-y-2 border-t pt-4">
+                <h3 className="font-medium text-foreground">Supported formats:</h3>
               </div>
             </CardContent>
           </Card>
