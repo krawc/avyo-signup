@@ -32,7 +32,7 @@ const Index = () => {
 
   const handleEventId = async (eventId: string) => {
     try {
-      const updatedProfile = await addEventId(eventId);
+      const updatedProfile = await addEventId(eventId, user);
       toast({
         description: "",
         title: `Event added to your profile!`,

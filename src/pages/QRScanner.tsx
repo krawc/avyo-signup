@@ -5,14 +5,19 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ArrowLeft, Camera, X, Zap, ZapOff } from 'lucide-react';
 import Header from '@/components/Header';
+import { addEventId } from '@/lib/utils'
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from '@/contexts/AuthContext';
 
 const QRScanner = () => {
+  const { user, loading } = useAuth();
   const navigate = useNavigate();
   const [isScanning, setIsScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const [torchEnabled, setTorchEnabled] = useState(false);
   const scanningRef = useRef(false);
+  const { toast } = useToast();
 
   // Cleanup function to ensure proper state reset
   const cleanup = useCallback(async () => {
@@ -108,7 +113,67 @@ const QRScanner = () => {
     }
   };
 
+  const handleEventId = async (eventId: string) => {
+    try {
+      // You'll need to import your addEventId function
+      const updatedProfile = await addEventId(eventId, user);
+      toast({
+        title: "Event Added!",
+        description: `Event ${eventId} added to your profile!`,
+      });
+      
+      // Navigate back or to profile after successful event addition
+      setTimeout(() => {
+        navigate('/profile');
+      }, 1500);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: `Failed to save event to profile: ${error}, ${eventId}`,
+      });
+    }
+  };
+
+  const handleDeepLinkError = (error: string) => {
+    toast({
+      title: "Link Error",
+      description: error,
+    });
+  };
+
+  // // Set up deep link handler
+  // useDeepLink({
+  //   onEventId: handleEventId,
+  //   onError: handleDeepLinkError
+  // });
+
   const handleScannedContent = (text: string) => {
+    console.log('Processing scanned content:', text);
+    
+    // Check for avyo:// deep links first
+    if (text.startsWith('avyo://')) {
+      console.log('Found avyo deep link:', text);
+      
+      try {
+        const url = new URL(text);
+        const eventId = url.searchParams.get('eventId') || url.pathname.replace('/', '');
+        
+        if (eventId && eventId.trim()) {
+          console.log('Extracted eventId:', eventId);
+          handleEventId(eventId.trim());
+          return;
+        } else {
+          setError('Invalid avyo link: No event ID found');
+          return;
+        }
+      } catch (err) {
+        console.error('Error parsing avyo link:', err);
+        setError('Invalid avyo link format');
+        return;
+      }
+    }
+
+    // Handle other URL types as fallback
     try {
       const url = new URL(text);
       if (url.protocol === 'http:' || url.protocol === 'https:') {
@@ -119,11 +184,13 @@ const QRScanner = () => {
       // Not a valid URL
     }
 
+    // Handle local routes
     if (text.startsWith('/')) {
       navigate(text);
       return;
     }
 
+    // Handle other protocols
     if (text.includes(':')) {
       const [protocol] = text.split(':');
       if (['tel', 'mailto', 'sms'].includes(protocol.toLowerCase())) {
@@ -132,7 +199,8 @@ const QRScanner = () => {
       }
     }
 
-    setError(`Unrecognized QR code format: ${text.substring(0, 50)}...`);
+    // If nothing matches, show error
+    setError(`Unrecognized QR code format. Expected avyo:// link, but got: ${text.substring(0, 50)}...`);
   };
 
   const stopScan = async () => {

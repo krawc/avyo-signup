@@ -153,9 +153,9 @@ export const parseEventUrlFromPath = (url: string): ParsedEventData => {
 };
 
   // Add event ID to user profile
-  export const addEventId = async (eventId: string) => {
+  export const addEventId = async (eventId: string, user) => {
 
-    const {user} = useAuth();
+    //const {user} = useAuth();
 
     if (eventId && user) {
       try {
