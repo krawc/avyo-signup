@@ -15,6 +15,7 @@ import QRScanner from "./pages/QRScanner";
 import AccountSettings from "./pages/AccountSettings";
 import NotFound from "./pages/NotFound";
 import PasswordReset from "./pages/PasswordReset";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
 import BottomNavigation from "./components/BottomNavigation";
 
 const queryClient = new QueryClient();
@@ -36,6 +37,7 @@ const App = () => (
             <Route path="/post-registration" element={<PostRegistration />} />
             <Route path="/qr-scanner" element={<QRScanner />} />
             <Route path="/account-settings" element={<AccountSettings />} />
+            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
             <Route path="/events/:eventId" element={<EventDetails />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
