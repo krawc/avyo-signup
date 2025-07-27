@@ -50,10 +50,42 @@ This project is built with:
 
 ## How can I deploy this project?
 
-You can use Netlify or any React deployment platform of your choice.
+### 🚀 Deployment on Netlify
 
-## Can I connect a custom domain to my Lovable project?
+To deploy the `avyo-signup` React app on Netlify:
 
-Yes, you can!
+#### 1. **Push to GitHub**
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain
+Make sure the latest code is pushed to a GitHub repository.
+
+#### 2. **Connect to Netlify**
+
+1. Log in to [Netlify](https://www.netlify.com/)
+2. Click **"Add new site"** → **"Import an existing project"**
+3. Select your GitHub repository
+
+#### 3. **Set Build Configuration**
+
+In the Netlify dashboard, use the following settings:
+
+```
+Base directory: /
+Package directory: (leave empty)
+Build command: bun run build
+Publish directory: dist
+```
+
+#### 4. **Deploy**
+
+Click **Deploy Site**. Netlify will install dependencies using Bun, build the project, and publish from the `dist` directory.
+
+#### 5. **Environment Variables (optional)**
+
+If your app depends on environment variables, set them in:
+**Site Settings → Environment Variables**
+
+#### 6. **Custom Domain & HTTPS (optional)**
+
+After deployment:
+- Set up a custom domain under **Domain Settings**
+- Enable HTTPS using Let's Encrypt
